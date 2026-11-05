@@ -30,6 +30,8 @@ mkdir -p "$B/gen" "$B/classes" "$B/dex" "$B/assets" \
 cp "$APP/bridge.js" "$B/assets/bridge.js"
 cp "$APP/device-inject.sh" "$B/assets/inject.sh"
 cp "$APP/watchdog.sh" "$B/assets/watchdog.sh"
+# Android's sh rejects CRLF; guard against a Windows checkout with autocrlf=true.
+sed -i 's/\r$//' "$B/assets/bridge.js" "$B/assets/inject.sh" "$B/assets/watchdog.sh"
 cp "$APP/bin/frida-inject-12.8.20-android-arm64" "$B/lib/arm64-v8a/libfrida_inject.so"
 cp "$APP/bin/frida-inject-12.8.20-android-arm" "$B/lib/armeabi-v7a/libfrida_inject.so"
 
