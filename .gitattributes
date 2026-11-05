@@ -1,0 +1,3 @@
+# Scripts run on Android's /system/bin/sh, which cannot parse CRLF line endings.
+*.sh text eol=lf
+*.js text eol=lf
