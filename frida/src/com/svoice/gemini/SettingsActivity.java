@@ -37,6 +37,7 @@ public class SettingsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setTitle("S Voice Gemini Bridge");
+        WatchdogService.start(this);
 
         Settings current = Settings.load();
 

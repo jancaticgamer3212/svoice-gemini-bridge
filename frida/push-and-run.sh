@@ -38,6 +38,7 @@ win() {
 for f in "$ROOT/S-Voice-Gemini-Frida.apk" \
          "$ROOT/frida/bridge.js" \
          "$ROOT/frida/device-inject.sh" \
+         "$ROOT/frida/watchdog.sh" \
          "$ROOT/frida/bin/frida-inject-12.8.20-android-arm64" \
          "$ROOT/frida/bin/frida-inject-12.8.20-android-arm"; do
   [ -f "$f" ] || { echo "missing: $f"; exit 1; }
@@ -52,7 +53,15 @@ echo "Copying the payload to $DIR ..."
 "$ADB" push "$(win "$ROOT/frida/bin/frida-inject-12.8.20-android-arm64")" "$DIR/frida-inject64"
 "$ADB" push "$(win "$ROOT/frida/bin/frida-inject-12.8.20-android-arm")" "$DIR/frida-inject32"
 "$ADB" push "$(win "$ROOT/frida/device-inject.sh")" "$DIR/inject.sh"
-"$ADB" shell "chmod 755 $DIR/frida-inject64 $DIR/frida-inject32 $DIR/inject.sh"
+"$ADB" push "$(win "$ROOT/frida/watchdog.sh")" "$DIR/watchdog.sh"
+"$ADB" shell "chmod 755 $DIR/frida-inject64 $DIR/frida-inject32 $DIR/inject.sh $DIR/watchdog.sh"
 
-echo "Starting the bridge (root required)..."
+echo "Attaching now (root required)..."
 "$ADB" shell "su -c 'sh $DIR/inject.sh'"
+
+echo "Starting the watchdog service..."
+"$ADB" shell "am broadcast -a com.svoice.gemini.START_WATCHDOG -n com.svoice.gemini/.BootReceiver" >/dev/null
+echo "If SuperSU asks for root for \"S Voice Gemini Bridge\", allow it once."
+sleep 3
+"$ADB" shell "su -c 'cat $DIR/watchdog.log 2>/dev/null'"
+"$ADB" shell "dumpsys activity services com.svoice.gemini | grep -i watchdog" || true

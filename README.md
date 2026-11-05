@@ -28,8 +28,9 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | --- | --- |
 | `S-Voice-Gemini-Frida.apk` | Bridge APK (settings UI + Gemini client), loaded into S Voice by Frida |
 | `frida/bridge.js` | Frida script: loads the bridge and hooks `DialogFlow` |
-| `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root |
-| `frida/device-inject.sh` | On-device launcher used by `push-and-run.sh` |
+| `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root, starts the watchdog |
+| `frida/device-inject.sh` | On-device one-shot launcher used by `push-and-run.sh` |
+| `frida/watchdog.sh` | On-device root loop that reattaches the bridge when S Voice restarts |
 | `frida/dump-svoice.sh` | Pulls S Voice from a connected Samsung phone so it can be sideloaded elsewhere |
 | `frida/bin/` | Frida 12.8.20 `frida-inject` builds for arm and arm64 (not in this repo; download the 12.8.20 release) |
 | `build-frida.sh` | Rebuild + sign script for the Frida APK |
@@ -75,7 +76,16 @@ supports Android 5.x.
    ```
    adb shell su -c "cat /data/local/tmp/svoice-gemini/bridge.log"
    ```
-4. After a reboot or a force-stop of S Voice, run `bash frida/push-and-run.sh` again.
+4. `push-and-run.sh` also starts the watchdog: a foreground service in the bridge APK that holds
+   a root shell loop. When S Voice exits or is force-stopped, the agent dies with it; the
+   watchdog sees the next process and attaches again within a few seconds, without a PC. Allow
+   the SuperSU prompt for **S Voice Gemini Bridge** once.
+
+   The watchdog is registered for boot, so after a reboot it starts on its own and reattaches
+   when S Voice is first opened. If it ever stops, open **S Voice Gemini Bridge** from the app
+   drawer (it restarts the service) or broadcast
+   `am broadcast -a com.svoice.gemini.START_WATCHDOG -n com.svoice.gemini/.BootReceiver`.
+   Watchdog decisions are logged to `/data/local/tmp/svoice-gemini/watchdog.log`.
 
 If injection fails with an SELinux denial, run `adb shell su -c setenforce 0` and retry;
 that lasts until the next reboot. The bridge leaves the "Hi Galaxy" wake word untouched and
@@ -228,6 +238,7 @@ published release build.
 ## Status
 
 Both APKs build and pass `apksigner verify`, and every hook target was checked against the
-decompiled odex. The Frida script was written against the Frida 12.8.20 Java bridge and its
-original-method dispatch, but it has **not** been run on a physical S6 edge here. Test on the
-phone with `push-and-run.sh` and read `bridge.log`; the first recognition turn is untested.
+decompiled odex. The Frida build has been run on an SM-G925F (Android 5.0.2): the hooks install,
+the running `ConversationActivity` is adopted, and the watchdog reattaches after S Voice is
+force-stopped. Recognition itself depends on your key and network, so confirm the first spoken
+turn in `bridge.log`.

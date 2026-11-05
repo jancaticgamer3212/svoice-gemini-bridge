@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">S Voice Gemini Bridge</string>
+    <string name="watchdog_title">S Voice bridge watchdog</string>
+    <string name="watchdog_text">Reattaches the bridge when S Voice restarts</string>
 </resources>
