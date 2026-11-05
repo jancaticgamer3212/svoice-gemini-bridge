@@ -1,8 +1,9 @@
 # Using the bridge on other devices
 
-The bridge itself is not tied to the Galaxy S6 edge. It hooks classes that ship **inside the
-S Voice APK**, so any device that can run that same S Voice build can run the bridge. The
-constraints all come from S Voice, which is a 2014 TouchWiz app.
+The bridge itself is not tied to one phone model — it was built and verified on a Galaxy S6
+edge and a Galaxy A3, and works on any phone running S Voice. It hooks classes that ship
+**inside the S Voice APK**, so any device that can run that same S Voice build can run the
+bridge. The constraints all come from S Voice, which is a 2014 TouchWiz app.
 
 ## Why there is no S Voice APK in this repository
 
@@ -21,14 +22,15 @@ S Voice 11.8.0.0 is `minSdkVersion 16`, `targetSdkVersion 19`, and declares a la
 
 | Target | Expectation |
 | --- | --- |
-| S6 / S6 edge / Note 5 era Samsung, Android 5.x–7.x | Closest to the original; full bridge behaviour |
+| Samsung with S Voice 11.8/11.9, Android 5.x–7.x | Closest to the original; full bridge behaviour (verified on SM-G925F 5.0.2 and SM-A310F 5.1.1) |
 | Other Samsung, Android 8–9 | Core tap-to-talk flow usually works; wake word and Samsung app integrations degrade |
 | Non-Samsung, Android 5–9 | S Voice installs and the voice flow can work; every Samsung-only integration is gone, wake word almost certainly not functional |
 | Android 10 | Installs and attaches; Frida 12.8.20 still works here |
 | Android 11+ | Installs (the APK is pure Java), but needs a newer Frida release and a port of `bridge.js` |
 
-The bridge has only been exercised against **11.8.0.0** and **11.9.0.0**. Other versions will
-need `frida/bridge.js` re-checked — the hook target is
+The bridge has only been exercised against **11.8.0.0** and **11.9.0.0** — on an SM-G925F
+(Android 5.0.2, 64-bit) and an SM-A310F (Android 5.1.1). Other versions will need
+`frida/bridge.js` re-checked — the hook target is
 `DialogFlow.startUserFlow(RecognitionMode, WakeUpContext, IAudioStream)`.
 
 ## 1. Pull your own copy
@@ -43,7 +45,7 @@ The script requires exactly one connected device, reads the installed version, p
 `./SVoice.apk`, warns if the version is not one the bridge knows, and prints the native ABIs,
 size and SHA-256.
 
-Reference run against the S6 edge:
+Reference run (SM-G925F, S Voice 11.8.0.0):
 
 ```
 Found S Voice 11.8.0.0 at /system/priv-app/S-Voice_Android_phone/S-Voice_Android_phone.apk
@@ -138,7 +140,7 @@ true`. Then tap the microphone and speak: the answer should arrive in S Voice's 
 * **"Hi Galaxy" wake word** relies on Samsung's `com.samsung.wakeupsetting` service. It is not
   bridged, and on non-Samsung hardware it will not work at all.
 * **Device actions** ("call mom", "set an alarm") no longer execute locally — everything goes to
-  the model as conversation. This is the same trade-off as on the S6 edge.
+  the model as conversation. This is a property of the bridge, not of the phone.
 * **Target API 19** means no modern background limits are declared by the app. On Android 8+
   keep S Voice in the foreground while talking, otherwise the OS may freeze it mid-recording.
 * **Storage** on Android 11+: legacy apps targeting API 19 still read `/sdcard` directly, so

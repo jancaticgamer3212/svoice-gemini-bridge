@@ -10,7 +10,7 @@ There are two builds:
   5.1.1 including arm64. Use this one: there is no working Xposed for Samsung 5.0.x arm64.
 
 * **Xposed module** (`S-Voice-Gemini-Bridge.apk`) — only for a ROM with a compatible Xposed
-  framework (S6/S6 edge: 5.1.1 SDK 22 arm64, e.g. wanam's builds).
+  framework (for Samsung 5.1.1 arm64, e.g. wanam's builds).
 
 ```
 microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
@@ -44,13 +44,16 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 
 ## Requirements
 
-* Galaxy S6 edge (SM-G925F), rooted, with TWRP.
-* An Xposed framework build that works on **this** Samsung TouchWiz ROM. Important: the
-  Samsung 5.0.x community builds are **32-bit ARM only**; the S6 edge firmware is 64-bit, and
-  no Samsung 5.0.2 arm64 build exists. On untouched 5.0.2 firmware this module can be
-  installed and its settings screen used, but the hooks cannot run. Xposed for the S6/S6 edge
-  does exist for **Android 5.1.1 (SDK 22, arm64)** — for example wanam's builds, which work on
-  stock odexed or deodexed ROMs.
+* Any rooted Samsung phone running **S Voice 11.8.0.0 or 11.9.0.0** (`com.vlingo.midas`).
+  Verified on SM-G925F (Android 5.0.2, S Voice 11.8.0.0) and SM-A310F (Android 5.1.1,
+  S Voice 11.9.0.0). The bridge hooks classes inside S Voice, so it is not tied to a phone
+  model; the limits are S Voice's own Samsung dependencies.
+* Root (`su`). The Frida route needs nothing else; the Xposed route additionally needs a
+  compatible framework.
+* Xposed only: a framework build that matches your ROM. For a 64-bit Samsung ROM that means
+  **Android 5.1.1 (SDK 22, arm64)**, for example wanam's builds. The Samsung 5.0.x community
+  builds are **32-bit ARM only**, so on untouched 5.0.2 firmware the module installs and saves
+  a key but its hooks cannot run.
 * A Gemini API key from Google AI Studio: <https://aistudio.google.com/app/apikey>.
 * Network access on the phone.
 
@@ -95,9 +98,9 @@ takes over microphone taps and typed requests.
 
 ## Other devices
 
-Nothing in this project is specific to the S6 edge: `bridge.js` hooks classes that ship inside
-the S Voice APK, so the same build of S Voice behaves the same anywhere it runs. The limits come
-from S Voice itself (a 2014 TouchWiz app that expects Samsung system services). See
+Nothing in this project is specific to one phone model: `bridge.js` hooks classes that ship
+inside the S Voice APK, so the same build of S Voice behaves the same anywhere it runs. The
+limits come from S Voice itself (a 2014 TouchWiz app that expects Samsung system services). See
 [`docs/other-devices.md`](docs/other-devices.md) for the compatibility matrix, how to dump S
 Voice from a device you own, and where the wake word and Samsung integrations stop working.
 
@@ -152,8 +155,9 @@ ASR_THINKING / IDLE)`, `DialogFragment.addDialogBubble(USER / VLINGO / ERROR, �
 * Answers are shown in S Voice's normal bubbles and spoken with the phone's default Android
   TTS engine. Turn off "Speak answers" if you only want text; if no TTS engine is installed,
   answers are text-only automatically.
-* Only this S Voice build (11.8.0.0) is targeted. Method names and fields were verified in
-  `work/smali`; a different S Voice version will need those names re-checked.
+* S Voice 11.8.0.0 and 11.9.0.0 are supported and both were verified on real phones. Method
+  names and fields differ between releases, so any other S Voice version needs the hook targets
+  re-checked against `work/smali`.
 * TLS 1.2 is forced and the module pins the Google Trust Services roots (GTS R1/R4), because
   Android 5.0's CA store predates them. If Google changes the certificate chain, the module
   must be rebuilt with the new root.
@@ -240,7 +244,8 @@ published release build.
 ## Status
 
 Both APKs build and pass `apksigner verify`, and every hook target was checked against the
-decompiled odex. The Frida build has been run on an SM-G925F (Android 5.0.2): the hooks install,
-the running `ConversationActivity` is adopted, and the watchdog reattaches after S Voice is
-force-stopped. Recognition itself depends on your key and network, so confirm the first spoken
-turn in `bridge.log`.
+decompiled odex. The Frida build has been run on two phones — SM-G925F (Android 5.0.2, S Voice
+11.8.0.0) and SM-A310F (Android 5.1.1, S Voice 11.9.0.0) — so it is not model-specific: the hooks
+install, the running `ConversationActivity` is adopted, and the watchdog reattaches after S Voice
+is force-stopped and after an APK update. Recognition itself depends on your key and network, so
+confirm the first spoken turn in `bridge.log`.
