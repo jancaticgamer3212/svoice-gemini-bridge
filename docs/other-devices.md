@@ -90,6 +90,11 @@ Open **S Voice Gemini Bridge**, paste a Gemini key (or a Groq key for the free f
 **Test key**, then **Save**. This writes `/sdcard/.svoice_gemini.json`, which the bridge reads on
 every turn.
 
+To reuse the keys from another phone instead of typing them again, plug in that phone and run
+`bash frida/copy-settings.sh save`, then plug in the target and run
+`bash frida/copy-settings.sh restore`. The file is stashed in `work/` (git-ignored) and the keys
+are never printed.
+
 ## 4. Inject
 
 The launcher is architecture-agnostic: it pushes both `frida-inject` builds and picks the one
