@@ -32,6 +32,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | `frida/device-inject.sh` | On-device launcher used by `push-and-run.sh` |
 | `frida/bin/` | Frida 12.8.20 `frida-inject` builds for arm and arm64 (not in this repo; download the 12.8.20 release) |
 | `build-frida.sh` | Rebuild + sign script for the Frida APK |
+| `docs/other-devices.md` | Running the bridge on other Samsung/non-Samsung phones |
 | `S-Voice-Gemini-Bridge.apk` | Signed Xposed module APK (only for Xposed-capable ROMs) |
 | `module/` | Xposed module source (`com.svoice.gemini`) |
 | `build.sh` | Rebuild + sign script for the Xposed APK |
@@ -78,6 +79,17 @@ supports Android 5.x.
 If injection fails with an SELinux denial, run `adb shell su -c setenforce 0` and retry;
 that lasts until the next reboot. The bridge leaves the "Hi Galaxy" wake word untouched and
 takes over microphone taps and typed requests.
+
+## Other devices
+
+Nothing in this project is specific to the S6 edge: `bridge.js` hooks classes that ship inside
+the S Voice APK, so the same build of S Voice behaves the same anywhere it runs. The limits come
+from S Voice itself (a 2014 TouchWiz app that expects Samsung system services). See
+[`docs/other-devices.md`](docs/other-devices.md) for the compatibility matrix, how to dump S
+Voice from a device you own, and where the wake word and Samsung integrations stop working.
+
+The S Voice APK is **not** distributed here — it is Samsung's software and also contains
+Samsung service credentials. Dump your own copy for personal use.
 
 ## Xposed install
 
