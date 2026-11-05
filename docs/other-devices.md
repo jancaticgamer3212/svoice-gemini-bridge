@@ -23,44 +23,51 @@ S Voice 11.8.0.0 is `minSdkVersion 16`, `targetSdkVersion 19`, and declares a la
 | --- | --- |
 | S6 / S6 edge / Note 5 era Samsung, Android 5.x–7.x | Closest to the original; full bridge behaviour |
 | Other Samsung, Android 8–9 | Core tap-to-talk flow usually works; wake word and Samsung app integrations degrade |
-| Non-Samsung, Android 5–9 with 32-bit app support | S Voice may install and the voice flow can work; every Samsung-only integration is gone, wake word almost certainly not functional |
-| Android 10+ | Frida 12.8.20 is a problem (see below), and 64-bit-only devices cannot install a 32-bit-only APK |
+| Non-Samsung, Android 5–9 | S Voice installs and the voice flow can work; every Samsung-only integration is gone, wake word almost certainly not functional |
+| Android 10 | Installs and attaches; Frida 12.8.20 still works here |
+| Android 11+ | Installs (the APK is pure Java), but needs a newer Frida release and a port of `bridge.js` |
 
 The bridge has only been exercised against **11.8.0.0** and **11.9.0.0**. Other versions will
 need `frida/bridge.js` re-checked — the hook target is
 `DialogFlow.startUserFlow(RecognitionMode, WakeUpContext, IAudioStream)`.
 
-## 1. Check what you are carrying over
+## 1. Pull your own copy
 
-On the phone that has S Voice working:
-
-```bash
-adb shell dumpsys package com.vlingo.midas | grep -E "versionName|versionCode"
-adb shell pm path com.vlingo.midas
-```
-
-Expect `versionName=11.8.0.0` or `11.9.0.0`. Write down the path printed by `pm path`
-(usually something like `/system/priv-app/SVoice/SVoice.apk`).
-
-Check which CPU architectures the APK carries:
+Connect the Samsung phone that has S Voice working (USB debugging on), then from this folder:
 
 ```bash
-unzip -l SVoice.apk | grep 'lib/'
+bash frida/dump-svoice.sh
 ```
 
-If only `lib/armeabi-v7a/` is present, the target device must still support 32-bit apps.
-Most devices up to Android 9 do; many Android 10+ phones are 64-bit only.
+The script requires exactly one connected device, reads the installed version, pulls the APK to
+`./SVoice.apk`, warns if the version is not one the bridge knows, and prints the native ABIs,
+size and SHA-256.
 
-## 2. Pull your own copy
+Reference run against the S6 edge:
+
+```
+Found S Voice 11.8.0.0 at /system/priv-app/S-Voice_Android_phone/S-Voice_Android_phone.apk
+Version 11.8.0.0 matches the builds the bridge was written for.
+Native ABIs: none (pure Java)
+Size: 8258563 bytes
+SHA-256: 18b70219d22b0fb9d03dc2fe7243eb8f15d82734d15a65790a66e43da6e08b48
+```
+
+Because this build carries **no native libraries**, the CPU architecture of the target device
+does not matter for S Voice. Only the Frida injector is architecture-specific, and
+`push-and-run.sh` pushes both builds and picks the right one.
+
+Manual equivalent, if you prefer:
 
 ```bash
-adb pull /system/priv-app/SVoice/SVoice.apk ./SVoice.apk
+adb shell dumpsys package com.vlingo.midas | grep versionName
+adb shell pm path com.vlingo.midas          # prints the real path for your firmware
+adb pull /system/priv-app/S-Voice_Android_phone/S-Voice_Android_phone.apk ./SVoice.apk
 ```
 
-The pulled APK keeps Samsung's signature. Reinstalling a signed APK with `adb install` works
-even though the certificate is not yours.
+The pulled APK keeps Samsung's signature. `adb install` does not care whose certificate it is.
 
-## 3. Install on the target device
+## 2. Install on the target device
 
 ```bash
 adb install -r SVoice.apk
@@ -77,13 +84,13 @@ Things to know:
 * If S Voice refuses to start on a non-Samsung device, it is missing a Samsung framework
   service and there is no fix short of a Samsung ROM. Fall back to a standalone assistant app.
 
-## 4. Configure the key
+## 3. Configure the key
 
 Open **S Voice Gemini Bridge**, paste a Gemini key (or a Groq key for the free fallback), press
 **Test key**, then **Save**. This writes `/sdcard/.svoice_gemini.json`, which the bridge reads on
 every turn.
 
-## 5. Inject
+## 4. Inject
 
 The launcher is architecture-agnostic: it pushes both `frida-inject` builds and picks the one
 matching S Voice's process at attach time.
@@ -105,7 +112,7 @@ On Android 10 the same Frida version still attaches, but Android 11+ needs a new
 release, and the JavaScript API changed between 12.x and 14+/16+. Expect to port `bridge.js`
 if you go past Android 10.
 
-## 6. Verify
+## 5. Verify
 
 ```bash
 adb shell su -c "cat /data/local/tmp/svoice-gemini/bridge.log"
@@ -115,7 +122,7 @@ adb logcat -s SVoiceGemini SVoiceGeminiFrida
 A healthy attach ends with `adopted the running ConversationActivity` and `bridge enabled =
 true`. Then tap the microphone and speak: the answer should arrive in S Voice's own bubbles.
 
-## 7. Known limitations on other hardware
+## 6. Known limitations on other hardware
 
 * **"Hi Galaxy" wake word** relies on Samsung's `com.samsung.wakeupsetting` service. It is not
   bridged, and on non-Samsung hardware it will not work at all.
@@ -128,7 +135,7 @@ true`. Then tap the microphone and speak: the answer should arrive in S Voice's 
 * **SELinux** may block the write of the optimized dex on stricter ROMs. Run
   `adb shell su -c setenforce 0`, retry, and expect to do this after every reboot.
 
-## 8. Reverting
+## 7. Reverting
 
 Uninstall `com.vlingo.midas` and `com.svoice.gemini`. S Voice's APK and odex are never modified,
 so a reinstall returns it to stock behaviour.

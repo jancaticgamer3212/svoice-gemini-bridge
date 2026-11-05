@@ -30,6 +30,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | `frida/bridge.js` | Frida script: loads the bridge and hooks `DialogFlow` |
 | `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root |
 | `frida/device-inject.sh` | On-device launcher used by `push-and-run.sh` |
+| `frida/dump-svoice.sh` | Pulls S Voice from a connected Samsung phone so it can be sideloaded elsewhere |
 | `frida/bin/` | Frida 12.8.20 `frida-inject` builds for arm and arm64 (not in this repo; download the 12.8.20 release) |
 | `build-frida.sh` | Rebuild + sign script for the Frida APK |
 | `docs/other-devices.md` | Running the bridge on other Samsung/non-Samsung phones |
