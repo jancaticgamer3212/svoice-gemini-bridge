@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds and signs S-Voice-Frida-Launcher.apk from this folder.
-# The payload (bridge.js, inject.sh, watchdog.sh) and the Frida 12.8.20 injectors come from
-# ../frida, so there is only one copy of them in the repository.
+# Builds and signs S-Voice-Gemini-Frida.apk (no Xposed dependency).
+# The APK bundles the Frida 12.8.20 injectors and the bridge scripts, so the bridge can be
+# installed from the phone itself without a PC.
 set -euo pipefail
 
 APP="$(cd "$(dirname "$0")" && pwd)"
@@ -11,15 +11,15 @@ cd "$APP"
 BT="$REPO/tools/sdk/build-tools/34.0.0"
 AJ="$REPO/tools/sdk/platforms/android-21/android.jar"
 KS="$REPO/signing/svoice.keystore"
-OUT="$APP/S-Voice-Frida-Launcher.apk"
+OUT="$APP/S-Voice-Gemini-Frida.apk"
 B="$APP/build"
 
 for f in "$BT/aapt2.exe" "$AJ" \
-         "$REPO/frida/bridge.js" \
-         "$REPO/frida/device-inject.sh" \
-         "$REPO/frida/watchdog.sh" \
-         "$REPO/frida/bin/frida-inject-12.8.20-android-arm64" \
-         "$REPO/frida/bin/frida-inject-12.8.20-android-arm"; do
+         "$APP/bridge.js" \
+         "$APP/device-inject.sh" \
+         "$APP/watchdog.sh" \
+         "$APP/bin/frida-inject-12.8.20-android-arm64" \
+         "$APP/bin/frida-inject-12.8.20-android-arm"; do
   [ -f "$f" ] || { echo "missing: $f"; exit 1; }
 done
 
@@ -27,11 +27,11 @@ rm -rf "$B"
 mkdir -p "$B/gen" "$B/classes" "$B/dex" "$B/assets" \
          "$B/lib/arm64-v8a" "$B/lib/armeabi-v7a"
 
-cp "$REPO/frida/bridge.js" "$B/assets/bridge.js"
-cp "$REPO/frida/device-inject.sh" "$B/assets/inject.sh"
-cp "$REPO/frida/watchdog.sh" "$B/assets/watchdog.sh"
-cp "$REPO/frida/bin/frida-inject-12.8.20-android-arm64" "$B/lib/arm64-v8a/libfrida_inject.so"
-cp "$REPO/frida/bin/frida-inject-12.8.20-android-arm" "$B/lib/armeabi-v7a/libfrida_inject.so"
+cp "$APP/bridge.js" "$B/assets/bridge.js"
+cp "$APP/device-inject.sh" "$B/assets/inject.sh"
+cp "$APP/watchdog.sh" "$B/assets/watchdog.sh"
+cp "$APP/bin/frida-inject-12.8.20-android-arm64" "$B/lib/arm64-v8a/libfrida_inject.so"
+cp "$APP/bin/frida-inject-12.8.20-android-arm" "$B/lib/armeabi-v7a/libfrida_inject.so"
 
 "$BT/aapt2.exe" compile --dir "$APP/res" -o "$B/res.zip"
 "$BT/aapt2.exe" link -o "$B/base.apk" -I "$AJ" \

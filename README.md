@@ -4,12 +4,12 @@ Keeps Samsung S Voice (11.8.0.0/11.9.0.0, `com.vlingo.midas`) exactly as it look
 the retired Vlingo cloud recognition with Google Gemini. The APK and ODEX on the device are not
 modified.
 
-There are two ways to load the bridge, plus an optional launcher app:
+There are two ways to load the bridge:
 
 * **Frida bridge** (`S-Voice-Gemini-Frida.apk` + `frida/`) — no Xposed, works on rooted 5.0.x and
-  5.1.1 including arm64. Use this one: there is no working Xposed for Samsung 5.0.x arm64.
-  `S-Voice-Frida-Launcher.apk` is a separate app that installs the Frida payload and starts the
-  bridge entirely on the phone, so no PC is needed.
+  5.1.1 including arm64. Use this one: there is no working Xposed for Samsung 5.0.x arm64. The
+  APK carries the Frida injectors and the bridge scripts, so it sets itself up on the phone
+  without a PC.
 
 * **Xposed module** (`S-Voice-Gemini-Bridge.apk`) — only for a ROM with a compatible Xposed
   framework (for Samsung 5.1.1 arm64, e.g. wanam's builds).
@@ -28,9 +28,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 
 | File | Purpose |
 | --- | --- |
-| `S-Voice-Gemini-Frida.apk` | Bridge APK (settings UI + Gemini client), loaded into S Voice by Frida |
-| `S-Voice-Frida-Launcher.apk` | Separate launcher app: installs the Frida payload and starts the bridge on the phone, no PC |
-| `frida-launcher/` | Separate launcher app project (`com.svoice.geminilauncher`) with its own build script |
+| `S-Voice-Gemini-Frida.apk` | Bridge APK: settings UI, Gemini client, and the on-phone Frida payload (injectors + scripts) |
 | `frida/bridge.js` | Frida script: loads the bridge and hooks `DialogFlow` |
 | `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root, starts the watchdog |
 | `frida/device-inject.sh` | On-device one-shot launcher used by `push-and-run.sh` |
@@ -38,11 +36,11 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | `frida/dump-svoice.sh` | Pulls S Voice from a connected Samsung phone so it can be sideloaded elsewhere |
 | `frida/copy-settings.sh` | Moves the API key file between phones (`save` / `restore`) without printing the keys |
 | `frida/bin/` | Frida 12.8.20 `frida-inject` builds for arm and arm64 (not in this repo; download the 12.8.20 release) |
-| `build-frida.sh` | Rebuild + sign script for the Frida APK |
+| `frida/build.sh` | Rebuild + sign script for the Frida APK (run from `frida/`) |
 | `docs/other-devices.md` | Running the bridge on other Samsung/non-Samsung phones |
 | `S-Voice-Gemini-Bridge.apk` | Signed Xposed module APK (only for Xposed-capable ROMs) |
 | `module/` | Xposed module source (`com.svoice.gemini`) |
-| `build.sh` | Rebuild + sign script for the Xposed APK |
+| `module/build.sh` | Rebuild + sign script for the Xposed APK (run from `module/`) |
 | `signing/svoice.keystore` | Local signing key (alias `svoice`) — deliberately not published; back it up outside git |
 | `THIRD-PARTY-NOTICES.txt` | Licences for bundled third-party binaries (Frida) |
 | `work/`, `apk/`, `tools/` | Local-only folders: decompiled S Voice, extraction tools, build SDK (not in this repo) |
@@ -53,8 +51,8 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
   Verified on SM-G925F (Android 5.0.2, S Voice 11.8.0.0) and SM-A310F (Android 5.1.1,
   S Voice 11.9.0.0). The bridge hooks classes inside S Voice, so it is not tied to a phone
   model; the limits are S Voice's own Samsung dependencies.
-* Root (`su`). The Frida build needs nothing else — with the launcher app you do not need a PC
-  or adb; the Xposed route additionally needs a compatible framework.
+* Root (`su`). The Frida APK needs nothing else and can install and attach itself on the phone,
+  so no PC or adb is required; the Xposed route additionally needs a compatible framework.
 * Xposed only: a framework build that matches your ROM. For a 64-bit Samsung ROM that means
   **Android 5.1.1 (SDK 22, arm64)**, for example wanam's builds. The Samsung 5.0.x community
   builds are **32-bit ARM only**, so on untouched 5.0.2 firmware the module installs and saves
@@ -64,36 +62,28 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 
 ## Frida install from the phone (no PC)
 
-The launcher app carries the Frida injectors and scripts inside its APK, so everything below
-happens on the phone. Use this unless you prefer adb.
+The Frida APK carries the injectors and scripts, so everything below happens on the phone.
 
-1. Install both APKs: `S-Voice-Gemini-Frida.apk` (the bridge itself, mandatory — it holds the
-   API key and the Gemini client) and `S-Voice-Frida-Launcher.apk`.
-2. Open **S Voice Frida Launcher** and allow the `su` request from your root manager.
-3. Tap **1. Install Frida payload (root)**. The app copies `bridge.js`, `inject.sh`,
-   `watchdog.sh` and the matching 32/64-bit injector into `/data/local/tmp/svoice-gemini`.
-   The status block on top then shows `Payload: 5/5 files`.
-4. Tap **4. Open bridge settings**, paste the Gemini key, optionally press **Test key**, then
-   **Save**. The launcher shows `API key file: present` afterwards.
-5. Tap **2. Start bridge now**. This starts S Voice if needed and attaches the bridge once; the
-   output of `inject.sh` is shown in the app, and the status shows `Bridge attached: yes` when
-   the agent is mapped into S Voice.
-6. Tap **3. Keep it attached after restarts**. This arms the watchdog in the bridge APK, so the
-   hook comes back by itself when S Voice is restarted, updated or the phone reboots.
+1. Install and open `S-Voice-Gemini-Frida.apk`, then allow the `su` request from your root
+   manager.
+2. In **Bridge control** tap **Install Frida payload (root)**. It copies `bridge.js`,
+   `inject.sh`, `watchdog.sh` and the matching 32/64-bit injector into
+   `/data/local/tmp/svoice-gemini`; the status then shows `Payload: installed`.
+3. Enter the Gemini key, optionally press **Test key**, then **Save**. The status shows
+   `API key file: present`.
+4. Tap **Attach to S Voice now**. It starts S Voice if needed and attaches the bridge; the
+   injector output appears under the buttons, and the status shows `Bridge attached: yes`.
+5. Talk to S Voice. The watchdog is already armed by opening this app: it reattaches when S
+   Voice restarts, after an APK update and after a reboot.
 
-Step 3 only has to be repeated after installing a newer launcher APK or changing the payload.
-The launcher declares no Android permissions; it uses `su` only to read the bridge state, copy
-the payload and run the injector, and it can be uninstalled without affecting an already-armed
-watchdog.
-
-The app lives in [`frida-launcher/`](frida-launcher) with its own build script. Rebuild it with
-`bash frida-launcher/build.sh`; it takes `bridge.js`, `inject.sh`, `watchdog.sh` and the Frida
-12.8.20 injectors from `frida/`, so those have one copy only.
+Tap **Install Frida payload** again after each APK update, because the scripts ship inside the
+APK. `su` is used only to copy the payload, read the bridge state and run the injector; no extra
+permissions are declared.
 
 ## Frida install from a PC
 
-This route needs only root, not Xposed. It uses Frida 12.8.20, the last series that still
-supports Android 5.x.
+Only needed if you prefer adb. This route needs only root, not Xposed. It uses Frida 12.8.20,
+the last series that still supports Android 5.x.
 
 1. Install the bridge APK and open it once:
    ```
@@ -276,17 +266,17 @@ published release build.
 
 ## Status
 
-All three APKs build and pass `apksigner verify`, and every hook target was checked against the
+Both APKs build and pass `apksigner verify`, and every hook target was checked against the
 decompiled odex. The Frida build has been run on two phones — SM-G925F (Android 5.0.2, S Voice
 11.8.0.0) and SM-A310F (Android 5.1.1, S Voice 11.9.0.0) — so it is not model-specific: the hooks
 install, the running `ConversationActivity` is adopted, and the watchdog reattaches after S Voice
-is force-stopped and after an APK update. The launcher APK builds and contains both injectors;
-its on-device steps still need a run on a rooted phone. Recognition itself depends on your key
-and network, so confirm the first spoken turn in `bridge.log`.
+is force-stopped and after an APK update. The on-phone payload installer and attach button run
+the same code that was tested as a standalone launcher app. Recognition itself depends on your
+key and network, so confirm the first spoken turn in `bridge.log`.
 
 ## Licences
 
-This project's own code is free to use and modify. `S-Voice-Frida-Launcher.apk` bundles
+This project's own code is free to use and modify. `S-Voice-Gemini-Frida.apk` bundles
 unmodified Frida 12.8.20 `frida-inject` binaries, published under the wxWindows Library Licence
 3.1; the full text is in [`THIRD-PARTY-NOTICES.txt`](THIRD-PARTY-NOTICES.txt). Samsung's S Voice
 is not part of this project or its releases.

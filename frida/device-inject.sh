@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # Runs on the phone as root. Pushed to /data/local/tmp/svoice-gemini/inject.sh
-# by push-and-run.sh; it starts S Voice if needed, then attaches bridge.js.
+# by push-and-run.sh or by the app's Install Frida payload button.
+# It starts S Voice if needed, then attaches bridge.js.
 
 DIR=/data/local/tmp/svoice-gemini
 [ -f "$DIR/bridge.js" ] || DIR=${0%/*}
@@ -60,7 +61,7 @@ case "$exe" in
 esac
 
 if [ ! -x "$INJECT" ]; then
-  echo "Missing $INJECT; run push-and-run.sh from the PC first."
+  echo "Missing $INJECT; tap Install Frida payload in S Voice Gemini Bridge."
   exit 1
 fi
 

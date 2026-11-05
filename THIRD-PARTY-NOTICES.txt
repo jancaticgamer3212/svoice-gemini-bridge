@@ -1,8 +1,9 @@
 Third-party notices
 ===================
 
-S-Voice-Frida-Launcher.apk bundles unmodified frida-inject 12.8.20 binaries
-(arm64-v8a and armeabi-v7a) so the bridge can be started on the phone without a PC.
+S-Voice-Gemini-Frida.apk bundles unmodified frida-inject 12.8.20 binaries
+(arm64-v8a and armeabi-v7a) so the bridge can install and start itself on the
+phone without a PC.
 
 The S Voice APK itself is Samsung software and is NOT included in any build or release
 of this project.

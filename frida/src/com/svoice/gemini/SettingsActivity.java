@@ -2,6 +2,8 @@ package com.svoice.gemini;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.InputType;
@@ -22,6 +24,10 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SettingsActivity extends Activity {
     private CheckBox enabled;
@@ -32,6 +38,12 @@ public class SettingsActivity extends Activity {
     private EditText systemPrompt;
     private CheckBox speak;
     private TextView testResult;
+    private TextView setupStatus;
+    private TextView setupLog;
+    private Button installButton;
+    private Button attachButton;
+
+    private final ExecutorService setupWorker = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +57,50 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(pad, pad, pad, pad);
+
+        root.addView(label("Bridge control", 18, true));
+
+        setupStatus = label("Checking...", 12, false);
+        setupStatus.setTypeface(android.graphics.Typeface.MONOSPACE);
+        setupStatus.setPadding(0, dp(8), 0, dp(12));
+        root.addView(setupStatus);
+
+        installButton = new Button(this);
+        installButton.setText("Install Frida payload (root)");
+        installButton.setAllCaps(false);
+        installButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                installPayload();
+            }
+        });
+        root.addView(installButton, matchWrap());
+
+        attachButton = new Button(this);
+        attachButton.setText("Attach to S Voice now");
+        attachButton.setAllCaps(false);
+        attachButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                attachNow();
+            }
+        });
+        root.addView(attachButton, matchWrap());
+
+        TextView setupHelp = label(
+                "The Frida injectors and scripts are inside this APK. Install the payload once, "
+                + "allow the su request, then attach. The watchdog reattaches on its own when "
+                + "S Voice restarts, after an update and after a reboot.",
+                12, false);
+        setupHelp.setPadding(0, dp(6), 0, dp(10));
+        root.addView(setupHelp);
+
+        setupLog = label("", 11, false);
+        setupLog.setTypeface(android.graphics.Typeface.MONOSPACE);
+        setupLog.setPadding(0, dp(4), 0, dp(18));
+        setupLog.setTextIsSelectable(true);
+        setupLog.setVisibility(View.GONE);
+        root.addView(setupLog);
 
         root.addView(label("Status", 18, true));
 
@@ -164,13 +220,14 @@ public class SettingsActivity extends Activity {
 
         root.addView(label("Installation", 18, true));
         TextView steps = label(
-                "1. Install this app. It stores the settings and provides the bridge code.\n"
+                "1. This app stores the settings, provides the bridge code and carries the "
+                + "Frida 12.8.20 injectors.\n"
                 + "2. Enter the Gemini API key above and tap Save.\n"
-                + "3. On a rooted phone, run frida/push-and-run.sh from the project folder. "
-                + "It attaches bridge.js to S Voice with Frida 12.8.20.\n"
+                + "3. On a rooted phone tap Install Frida payload (root) once, then Attach to "
+                + "S Voice now.\n"
                 + "4. Open S Voice and tap the microphone. The Hi Galaxy wake word is left untouched.\n\n"
-                + "The bridge runs while the Frida script is attached; run the script again after "
-                + "a reboot or a force-stop of S Voice.",
+                + "The watchdog reattaches by itself when S Voice restarts, after an APK update "
+                + "and after a reboot. frida/push-and-run.sh still works from a PC if you prefer.",
                 14, false);
         steps.setPadding(0, dp(6), 0, dp(30));
         root.addView(steps);
@@ -178,6 +235,178 @@ public class SettingsActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(root);
         setContentView(scroll);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshSetup();
+    }
+
+    @Override
+    protected void onDestroy() {
+        setupWorker.shutdownNow();
+        super.onDestroy();
+    }
+
+    private void installPayload() {
+        runSetup("Installing the Frida payload", new SetupTask() {
+            @Override
+            public String call() throws Exception {
+                return Payload.install(SettingsActivity.this);
+            }
+        });
+    }
+
+    private void attachNow() {
+        runSetup("Attaching to S Voice", new SetupTask() {
+            @Override
+            public String call() throws Exception {
+                RootShell.Result result = RootShell.run("sh " + Payload.DIR + "/inject.sh");
+                if (!result.ok()) {
+                    throw new Exception(Payload.firstLine(result));
+                }
+                return result.output;
+            }
+        });
+    }
+
+    private void runSetup(final String what, final SetupTask task) {
+        setSetupBusy(true);
+        setupLog.setVisibility(View.VISIBLE);
+        setupLog.setText(what + "...");
+        setupWorker.execute(new Runnable() {
+            @Override
+            public void run() {
+                String text;
+                try {
+                    text = tail(task.call());
+                } catch (Exception e) {
+                    text = what + " failed: " + e.getMessage();
+                }
+                final String rendered = text;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setupLog.setText(rendered);
+                        setSetupBusy(false);
+                    }
+                });
+                refreshSetup();
+            }
+        });
+    }
+
+    private void refreshSetup() {
+        final String svoice = packageVersion("com.vlingo.midas");
+        setupWorker.execute(new Runnable() {
+            @Override
+            public void run() {
+                StringBuilder text = new StringBuilder();
+                Map<String, String> values = new HashMap<String, String>();
+                boolean root = false;
+                try {
+                    RootShell.Result result = Payload.status();
+                    root = result.ok();
+                    values = parseValues(result.output);
+                } catch (Exception e) {
+                    text.append("Root: not available (").append(e.getMessage()).append(")\n");
+                }
+
+                if (root) {
+                    text.append("Root: granted\n");
+                } else if (text.length() == 0) {
+                    text.append("Root: denied or timed out\n");
+                }
+                text.append("S Voice: ").append(svoice == null ? "missing" : svoice).append('\n');
+
+                String pid = values.get("pid");
+                String abi = values.get("abi");
+                if (pid == null || pid.length() == 0) {
+                    text.append("S Voice running: no\n");
+                } else {
+                    text.append("S Voice running: pid ").append(pid)
+                            .append(abi != null && !"?".equals(abi) ? " (" + abi + "-bit)" : "")
+                            .append('\n');
+                }
+                text.append("Bridge attached: ")
+                        .append("1".equals(values.get("attached")) ? "yes" : "no")
+                        .append('\n');
+
+                if (root) {
+                    int scripts = parseCount(values.get("scripts"));
+                    int injectors = parseCount(values.get("injectors"));
+                    text.append("Payload: ");
+                    if (scripts == 3 && injectors > 0) {
+                        text.append("installed (").append(scripts).append("/3 scripts, ")
+                                .append(injectors).append(" injector")
+                                .append(injectors == 1 ? "" : "s").append(")\n");
+                    } else {
+                        text.append("missing - tap Install Frida payload above\n");
+                    }
+                    text.append("API key file: ")
+                            .append("1".equals(values.get("settings"))
+                                    ? "present"
+                                    : "missing - enter the key and tap Save")
+                            .append('\n');
+                }
+
+                final String rendered = text.toString();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setupStatus.setText(rendered);
+                    }
+                });
+            }
+        });
+    }
+
+    private String packageVersion(String packageName) {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(packageName, 0);
+            return info.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return null;
+        }
+    }
+
+    private void setSetupBusy(boolean busy) {
+        installButton.setEnabled(!busy);
+        attachButton.setEnabled(!busy);
+    }
+
+    private static String tail(String text) {
+        if (text == null) {
+            return "";
+        }
+        if (text.length() > 4000) {
+            return text.substring(text.length() - 4000);
+        }
+        return text;
+    }
+
+    private static Map<String, String> parseValues(String output) {
+        Map<String, String> values = new HashMap<String, String>();
+        for (String line : output.split("\n")) {
+            int eq = line.indexOf('=');
+            if (eq > 0) {
+                values.put(line.substring(0, eq), line.substring(eq + 1).trim());
+            }
+        }
+        return values;
+    }
+
+    private static int parseCount(String raw) {
+        try {
+            return Integer.parseInt(raw == null ? "" : raw.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private interface SetupTask {
+        String call() throws Exception;
     }
 
     private void saveAndClose() {

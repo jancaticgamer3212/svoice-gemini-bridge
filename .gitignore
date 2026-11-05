@@ -1,6 +1,7 @@
 # Build output
 /build/
-/frida-launcher/build/
+/frida/build/
+/module/build/
 *.apk
 *.idsig
 

@@ -71,7 +71,7 @@ public class WatchdogService extends Service {
         File script = new File(DIR, "watchdog.sh");
         while (running) {
             if (!script.isFile()) {
-                Log.w(TAG, "missing " + script + "; push the payload with frida/push-and-run.sh");
+                Log.w(TAG, "missing " + script + "; tap Install Frida payload in the app");
                 sleep(30000);
                 continue;
             }

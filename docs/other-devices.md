@@ -112,10 +112,10 @@ SuperSU prompt for **S Voice Gemini Bridge** once. The service is registered for
 updates and for screen unlocks, so after a reboot or an update it reattaches on its own the next
 time S Voice is opened — no PC and no need to open the settings app.
 
-**Without a PC** you can skip this step entirely: install `S-Voice-Frida-Launcher.apk`, open it,
-tap **1. Install Frida payload (root)** and then **2. Start bridge now**, and tap **3. Keep it
-attached after restarts** to arm the same watchdog. The launcher bundles both injectors and the
-scripts, so `frida/bin/` and `push-and-run.sh` are not needed on that route.
+**Without a PC** you can skip this step entirely: the Frida APK bundles both injectors and the
+scripts. Install `S-Voice-Gemini-Frida.apk`, open **S Voice Gemini Bridge**, tap **Install Frida
+payload (root)** and then **Attach to S Voice now**; opening the app also arms the watchdog.
+`frida/bin/` and `push-and-run.sh` are not needed on that route.
 
 If `frida/bin/` is empty (the binaries are not published here), download Frida
 **12.8.20** from <https://github.com/frida/frida/releases/tag/12.8.20>:

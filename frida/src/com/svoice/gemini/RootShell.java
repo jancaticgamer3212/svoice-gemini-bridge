@@ -1,4 +1,4 @@
-package com.svoice.geminilauncher;
+package com.svoice.gemini;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

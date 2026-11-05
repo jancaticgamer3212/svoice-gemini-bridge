@@ -65,7 +65,7 @@ attach() {
     *) INJECT=$DIR/frida-inject64 ;;
   esac
   if [ ! -x "$INJECT" ]; then
-    log "missing $INJECT; run push-and-run.sh from the PC"
+    log "missing $INJECT; tap Install Frida payload in the app"
     return 1
   fi
 

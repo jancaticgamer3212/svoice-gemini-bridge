@@ -1,4 +1,4 @@
-package com.svoice.geminilauncher;
+package com.svoice.gemini;
 
 import android.content.Context;
 
@@ -51,10 +51,14 @@ final class Payload {
     static RootShell.Result status() throws Exception {
         return RootShell.run(
                 "D=" + DIR + "\n"
-                + "i=0\n"
-                + "for f in bridge.js inject.sh watchdog.sh frida-inject32 frida-inject64; do "
-                + "[ -f \"$D/$f\" ] && i=$((i + 1)); done\n"
-                + "echo payload=$i\n"
+                + "s=0\n"
+                + "for f in bridge.js inject.sh watchdog.sh; do "
+                + "[ -f \"$D/$f\" ] && s=$((s + 1)); done\n"
+                + "o=0\n"
+                + "for f in frida-inject32 frida-inject64; do "
+                + "[ -f \"$D/$f\" ] && o=$((o + 1)); done\n"
+                + "echo scripts=$s\n"
+                + "echo injectors=$o\n"
                 + "[ -f /sdcard/.svoice_gemini.json ] && echo settings=1 || echo settings=0\n"
                 + "P=\n"
                 + "for f in /proc/[0-9]*/cmdline; do\n"
