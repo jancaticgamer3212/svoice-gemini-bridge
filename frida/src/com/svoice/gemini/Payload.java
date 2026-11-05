@@ -6,6 +6,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /** Maps the bundled assets and native libraries onto the root payload directory. */
 final class Payload {
@@ -13,9 +17,14 @@ final class Payload {
     static final String[] SCRIPTS = {"bridge.js", "inject.sh", "watchdog.sh"};
 
     private static final String SO_NAME = "libfrida_inject.so";
+
+    /**
+     * Output name followed by the ABI directory names to look for. Android 5.x uses short
+     * names (/data/app/<pkg>/lib/arm, .../lib/arm64), newer releases use the full ABI names.
+     */
     private static final String[][] INJECTORS = {
-            {"arm64-v8a", "frida-inject64"},
-            {"armeabi-v7a", "frida-inject32"},
+            {"frida-inject64", "arm64-v8a", "arm64"},
+            {"frida-inject32", "armeabi-v7a", "arm", "armeabi"},
     };
 
     private Payload() {
@@ -23,6 +32,15 @@ final class Payload {
 
     static String install(Context context) throws Exception {
         File cache = extractScripts(context);
+        List<File> sources = new ArrayList<File>();
+        List<String> names = new ArrayList<String>();
+        for (String[] injector : INJECTORS) {
+            File source = injectorSource(context, injector);
+            if (source != null) {
+                sources.add(source);
+                names.add(injector[0]);
+            }
+        }
         StringBuilder command = new StringBuilder();
         command.append("D=").append(DIR).append('\n');
         command.append("mkdir -p \"$D\" || exit 1\n");
@@ -30,11 +48,9 @@ final class Payload {
             command.append("cp '").append(new File(cache, name).getAbsolutePath())
                     .append("' \"$D/").append(name).append("\" || exit 1\n");
         }
-        for (String[] injector : INJECTORS) {
-            File source = library(context, injector[0]);
-            command.append("if [ -f '").append(source.getAbsolutePath()).append("' ]; then ")
-                    .append("cp '").append(source.getAbsolutePath()).append("' \"$D/")
-                    .append(injector[1]).append("\"; fi\n");
+        for (int i = 0; i < sources.size(); i++) {
+            command.append("cp '").append(sources.get(i).getAbsolutePath())
+                    .append("' \"$D/").append(names.get(i)).append("\" || exit 1\n");
         }
         command.append("chmod 755 \"$D\"/* || exit 1\n");
         command.append("[ -f \"$D/frida-inject64\" ] || [ -f \"$D/frida-inject32\" ] || ")
@@ -120,14 +136,51 @@ final class Payload {
     }
 
     /**
-     * The package manager extracts the matching ABIs next to the primary one, e.g.
-     * /data/app/<pkg>/lib/arm64-v8a and /data/app/<pkg>/lib/armeabi-v7a.
+     * PackageManager extracts only the ABIs the device supports, so at most one of these
+     * directories exists. Fall back to reading the library straight out of the APK.
      */
-    private static File library(Context context, String abi) {
-        File primary = new File(context.getApplicationInfo().nativeLibraryDir);
-        if (primary.getName().equals(abi)) {
-            return new File(primary, SO_NAME);
+    private static File injectorSource(Context context, String[] injector) {
+        File libRoot = new File(context.getApplicationInfo().nativeLibraryDir).getParentFile();
+        for (int i = 1; i < injector.length; i++) {
+            File candidate = new File(new File(libRoot, injector[i]), SO_NAME);
+            if (candidate.isFile()) {
+                return candidate;
+            }
         }
-        return new File(new File(primary.getParentFile(), abi), SO_NAME);
+        for (int i = 1; i < injector.length; i++) {
+            File extracted = extractFromApk(context, injector[i], injector[0]);
+            if (extracted != null) {
+                return extracted;
+            }
+        }
+        return null;
+    }
+
+    private static File extractFromApk(Context context, String abi, String name) {
+        ZipFile apk = null;
+        try {
+            apk = new ZipFile(context.getPackageCodePath());
+            ZipEntry entry = apk.getEntry("lib/" + abi + "/" + SO_NAME);
+            if (entry == null) {
+                return null;
+            }
+            File out = new File(new File(context.getCacheDir(), "payload"), name);
+            InputStream in = apk.getInputStream(entry);
+            try {
+                copy(in, out);
+            } finally {
+                in.close();
+            }
+            return out;
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            if (apk != null) {
+                try {
+                    apk.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 }
