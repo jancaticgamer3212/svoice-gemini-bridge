@@ -30,8 +30,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | --- | --- |
 | `S-Voice-Gemini-Frida.apk` | Bridge APK (settings UI + Gemini client), loaded into S Voice by Frida |
 | `S-Voice-Frida-Launcher.apk` | Separate launcher app: installs the Frida payload and starts the bridge on the phone, no PC |
-| `launcher/` | Launcher app source (`com.svoice.geminilauncher`) |
-| `build-launcher.sh` | Rebuild + sign script for the launcher APK (bundles the Frida 12.8.20 injectors) |
+| `frida-launcher/` | Separate launcher app project (`com.svoice.geminilauncher`) with its own build script |
 | `frida/bridge.js` | Frida script: loads the bridge and hooks `DialogFlow` |
 | `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root, starts the watchdog |
 | `frida/device-inject.sh` | On-device one-shot launcher used by `push-and-run.sh` |
@@ -86,6 +85,10 @@ Step 3 only has to be repeated after installing a newer launcher APK or changing
 The launcher declares no Android permissions; it uses `su` only to read the bridge state, copy
 the payload and run the injector, and it can be uninstalled without affecting an already-armed
 watchdog.
+
+The app lives in [`frida-launcher/`](frida-launcher) with its own build script. Rebuild it with
+`bash frida-launcher/build.sh`; it takes `bridge.js`, `inject.sh`, `watchdog.sh` and the Frida
+12.8.20 injectors from `frida/`, so those have one copy only.
 
 ## Frida install from a PC
 
