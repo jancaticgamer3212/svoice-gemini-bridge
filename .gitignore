@@ -1,0 +1,21 @@
+# Build output
+/build/
+*.apk
+*.idsig
+
+# Local toolchain and Frida binaries
+/tools/
+/frida/bin/
+
+# Original Samsung APK and decompiled sources (not redistributable)
+/apk/
+/work/
+
+# Signing keys - keep a backup outside git
+*.keystore
+*.jks
+/signing/
+
+# OS junk
+Thumbs.db
+.DS_Store
