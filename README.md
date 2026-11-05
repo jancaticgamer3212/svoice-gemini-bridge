@@ -81,9 +81,10 @@ supports Android 5.x.
    watchdog sees the next process and attaches again within a few seconds, without a PC. Allow
    the SuperSU prompt for **S Voice Gemini Bridge** once.
 
-   The watchdog is registered for boot, so after a reboot it starts on its own and reattaches
-   when S Voice is first opened. If it ever stops, open **S Voice Gemini Bridge** from the app
-   drawer (it restarts the service) or broadcast
+   The watchdog is registered for boot, for APK updates (`MY_PACKAGE_REPLACED`) and for screen
+   unlocks, so it starts on its own after a reboot or an update and reattaches when S Voice is
+   first opened. If it ever stops, open **S Voice Gemini Bridge** from the app drawer (it
+   restarts the service) or broadcast
    `am broadcast -a com.svoice.gemini.START_WATCHDOG -n com.svoice.gemini/.BootReceiver`.
    Watchdog decisions are logged to `/data/local/tmp/svoice-gemini/watchdog.log`.
 

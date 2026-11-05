@@ -101,8 +101,9 @@ bash frida/push-and-run.sh
 
 It needs root. The script attaches once and then starts the watchdog: a foreground service in
 the bridge APK that holds a root shell loop and reattaches whenever S Voice restarts. Allow the
-SuperSU prompt for **S Voice Gemini Bridge** once. The service is registered for boot, so after
-a reboot it reattaches on its own the next time S Voice is opened — no PC needed.
+SuperSU prompt for **S Voice Gemini Bridge** once. The service is registered for boot, for APK
+updates and for screen unlocks, so after a reboot or an update it reattaches on its own the next
+time S Voice is opened — no PC and no need to open the settings app.
 
 If `frida/bin/` is empty (the binaries are not published here), download Frida
 **12.8.20** from <https://github.com/frida/frida/releases/tag/12.8.20>:
