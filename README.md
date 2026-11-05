@@ -28,7 +28,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 
 | File | Purpose |
 | --- | --- |
-| `S-Voice-Gemini-Frida.apk` | Bridge APK: settings UI, Gemini client, and the on-phone Frida payload (injectors + scripts) |
+| `frida/S-Voice-Gemini-Frida.apk` | Bridge APK: settings UI, Gemini client, and the on-phone Frida payload (injectors + scripts) |
 | `frida/bridge.js` | Frida script: loads the bridge and hooks `DialogFlow` |
 | `frida/push-and-run.sh` | PC script: installs the APK, copies the payload, injects as root, starts the watchdog |
 | `frida/device-inject.sh` | On-device one-shot launcher used by `push-and-run.sh` |
@@ -38,7 +38,7 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 | `frida/bin/` | Frida 12.8.20 `frida-inject` builds for arm and arm64 (not in this repo; download the 12.8.20 release) |
 | `frida/build.sh` | Rebuild + sign script for the Frida APK (run from `frida/`) |
 | `docs/other-devices.md` | Running the bridge on other Samsung/non-Samsung phones |
-| `S-Voice-Gemini-Bridge.apk` | Signed Xposed module APK (only for Xposed-capable ROMs) |
+| `module/S-Voice-Gemini-Bridge.apk` | Signed Xposed module APK (only for Xposed-capable ROMs) |
 | `module/` | Xposed module source (`com.svoice.gemini`) |
 | `module/build.sh` | Rebuild + sign script for the Xposed APK (run from `module/`) |
 | `signing/svoice.keystore` | Local signing key (alias `svoice`) — deliberately not published; back it up outside git |
@@ -60,9 +60,17 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 * A Gemini API key from Google AI Studio: <https://aistudio.google.com/app/apikey>.
 * Network access on the phone.
 
+## Download
+
+Grab `S-Voice-Gemini-Frida.apk` from the
+[latest release](https://github.com/jancaticgamer3212/svoice-gemini-bridge/releases/latest).
+The Xposed build is only attached to releases when it is rebuilt; otherwise build it from
+`module/` (see [Rebuilding](#rebuilding)).
+
 ## Frida install from the phone (no PC)
 
 The Frida APK carries the injectors and scripts, so everything below happens on the phone.
+This is the recommended route and needs no PC.
 
 1. Install and open `S-Voice-Gemini-Frida.apk`, then allow the `su` request from your root
    manager.
@@ -225,9 +233,13 @@ revoke the key if the phone is lost. Audio from each turn is sent to Google Gemi
 The toolchain (SDK platform 21, build-tools 34, Xposed API 82) is under `tools/`:
 
 ```
-bash build.sh        # Xposed module APK
-bash build-frida.sh  # Frida bridge APK
+bash module/build.sh   # Xposed module APK   -> module/S-Voice-Gemini-Bridge.apk
+bash frida/build.sh    # Frida bridge APK    -> frida/S-Voice-Gemini-Frida.apk
 ```
+
+`frida/build.sh` copies `frida/bin/frida-inject-12.8.20-android-*` (download the 12.8.20 release
+from Frida and put them there) into the APK as `lib/<abi>/libfrida_inject.so`, together with
+`bridge.js` and the two shell scripts.
 
 The scripts compile resources with `aapt2`, compile with `javac` against `android.jar`,
 dex with `d8`, package, zipalign and sign with `signing/svoice.keystore`. Keep that
