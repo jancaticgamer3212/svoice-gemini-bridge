@@ -90,9 +90,8 @@ public class SettingsActivity extends Activity {
         root.addView(attachButton, matchWrap());
 
         fallbackButton = new Button(this);
-        fallbackButton.setText("Open no-root assistant (fallback)");
+        fallbackButton.setText("Open no-root assistant (no root needed)");
         fallbackButton.setAllCaps(false);
-        fallbackButton.setVisibility(View.GONE);
         fallbackButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -367,12 +366,10 @@ public class SettingsActivity extends Activity {
                 }
 
                 final String rendered = text.toString();
-                final boolean hasRoot = root;
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         setupStatus.setText(rendered);
-                        fallbackButton.setVisibility(hasRoot ? View.GONE : View.VISIBLE);
                     }
                 });
             }
