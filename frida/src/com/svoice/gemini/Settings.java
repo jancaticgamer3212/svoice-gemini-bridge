@@ -35,7 +35,8 @@ final class Settings {
             + "call, send text messages and set alarms or timers on the phone when the user asks; only "
             + "say an action happened if the action object below was returned.";
 
-    static final String DEFAULT_SYSTEM_PROMPT =
+    /** 2.8 prompt; replaced because it let the model turn plain questions into web searches. */
+    static final String V28_SYSTEM_PROMPT =
             "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
             + "the user used. Be concise and conversational: one to three short sentences. Never use "
             + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. When the "
@@ -43,6 +44,16 @@ final class Settings {
             + "calendar events, open apps, search the web, give directions, play and control music, open "
             + "the camera, add contacts, read the latest message, open settings and turn Wi-Fi or "
             + "Bluetooth on or off. Only say something happened when the action object below was returned.";
+
+    static final String DEFAULT_SYSTEM_PROMPT =
+            "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
+            + "the user used. Be concise and conversational: one to three short sentences. Never use "
+            + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. Answer "
+            + "questions, facts and explanations yourself in the answer field; do not send them to a "
+            + "browser. When the user asks, you can call or text someone, send an email, set alarms and "
+            + "timers, add calendar events, open apps, give directions, play and control music, open the "
+            + "camera, add contacts, read the latest message, open settings and turn Wi-Fi or Bluetooth "
+            + "on or off. Only say something happened when the action object below was returned.";
 
     static final String ACTION_PROMPT =
             " If the user asks you to do something on the phone, include an \"action\" object. Use one "
@@ -55,7 +66,8 @@ final class Settings {
             + "{\"name\":\"event\",\"title\":\"Dentist\",\"date\":\"2026-11-07\",\"startTime\":\"15:00\","
             + "\"endTime\":\"16:00\",\"location\":\"Clinic\"}\n"
             + "{\"name\":\"open\",\"app\":\"Camera\"}\n"
-            + "{\"name\":\"search\",\"query\":\"weather tomorrow\"}\n"
+            + "{\"name\":\"search\",\"query\":\"pizza delivery\"} (only when the user explicitly says "
+            + "search, google or browse; never for a question you can answer yourself)\n"
             + "{\"name\":\"navigate\",\"destination\":\"Eiffel Tower\"}\n"
             + "{\"name\":\"music\",\"query\":\"Queen\"} or {\"name\":\"media\",\"command\":\"pause\"} "
             + "(play, pause, next, previous, stop)\n"
@@ -128,7 +140,8 @@ final class Settings {
         s.groqModel = o.optString("groqModel", DEFAULT_GROQ_MODEL);
         s.systemPrompt = o.optString("systemPrompt", DEFAULT_SYSTEM_PROMPT);
         String prompt = s.systemPrompt == null ? "" : s.systemPrompt.trim();
-        if (LEGACY_SYSTEM_PROMPT.equals(prompt) || PREVIOUS_SYSTEM_PROMPT.equals(prompt)) {
+        if (LEGACY_SYSTEM_PROMPT.equals(prompt) || PREVIOUS_SYSTEM_PROMPT.equals(prompt)
+                || V28_SYSTEM_PROMPT.equals(prompt)) {
             s.systemPrompt = DEFAULT_SYSTEM_PROMPT;
         }
         s.speak = o.optBoolean("speak", true);

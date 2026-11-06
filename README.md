@@ -110,10 +110,10 @@ confirmation. If an action fails, the reason is spoken instead of a false succes
 | "text Alex on my way" | Sends the SMS with the phone's default SIM |
 | "email Mom about dinner" | Opens an email draft to the contact's address |
 | "set an alarm for 7:30", "every weekday at 6" | Sets the alarm, optionally repeating |
-| "set a timer for 10 minutes" | Starts the clock timer |
+| "set a timer for 10 minutes" | Starts the clock timer and shows S Voice's countdown card |
 | "meeting with Sam tomorrow at 3" | Adds the event to the default calendar |
 | "open Camera", "launch WhatsApp" | Starts the app by name |
-| "search for the Eiffel Tower" | Opens web search for the query |
+| "search for the Eiffel Tower" | Opens web search for the query (only on an explicit request) |
 | "navigate to the train station" | Opens maps with the destination |
 | "play Queen", "pause", "next track" | Searches the music app or sends media keys |
 | "take a photo", "record a video" | Opens the camera in still/video mode |
@@ -228,6 +228,11 @@ ASR_THINKING / IDLE)`, `DialogFragment.addDialogBubble(USER / VLINGO / ERROR, â€
 * Answers are shown in S Voice's normal bubbles and spoken with the phone's default Android
   TTS engine. Turn off "Speak answers" if you only want text; if no TTS engine is installed,
   answers are text-only automatically.
+* Questions are answered in the bubble. The browser is only opened when you explicitly ask to
+  search, google or browse; the bridge drops a model-requested search on any other request.
+* A timer request shows S Voice's own countdown card (the same widget the original app used)
+  instead of a text bubble. The card keeps ticking from the Samsung Clock app; if the widget
+  cannot be built, the answer falls back to a normal bubble.
 * S Voice 11.8.0.0 and 11.9.0.0 are supported and both were verified on real phones. Method
   names and fields differ between releases, so any other S Voice version needs the hook targets
   re-checked against `work/smali`.

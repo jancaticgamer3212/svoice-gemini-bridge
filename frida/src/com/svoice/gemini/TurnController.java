@@ -6,6 +6,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import org.json.JSONObject;
+
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -84,8 +87,9 @@ final class TurnController {
                     return;
                 }
                 if (activeId != id) return;
-                answer = performAction(app, answer);
-                showAnswer(activity, app, cfg, answer.transcript, answer.answer, id);
+                Outcome outcome = performAction(app, answer, answer.transcript);
+                showAnswer(activity, app, cfg, outcome.answer.transcript, outcome.answer.answer,
+                        outcome.cardMillis, id);
             }
         });
     }
@@ -122,33 +126,69 @@ final class TurnController {
                     return;
                 }
                 if (activeId != id) return;
-                result = performAction(app, result);
-                showAnswer(activity, app, cfg, null, result.answer, id);
+                Outcome outcome = performAction(app, result, text);
+                showAnswer(activity, app, cfg, null, outcome.answer.answer, outcome.cardMillis, id);
             }
         });
     }
 
-    /** Runs a model-requested phone action on the worker thread before the answer is shown. */
-    private static GeminiClient.Answer performAction(Context app, GeminiClient.Answer answer) {
-        if (answer == null || answer.action == null) return answer;
+    /** A finished turn: the answer plus an optional S Voice countdown card to show. */
+    private static final class Outcome {
+        final GeminiClient.Answer answer;
+        final long cardMillis;
+
+        Outcome(GeminiClient.Answer answer, long cardMillis) {
+            this.answer = answer;
+            this.cardMillis = cardMillis;
+        }
+    }
+
+    /**
+     * Runs a model-requested phone action on the worker thread before the answer is shown.
+     * A web search is only honoured when the user actually asked for one: otherwise a plain
+     * question would launch the browser instead of being answered in the bubble.
+     */
+    private static Outcome performAction(Context app, GeminiClient.Answer answer, String userText) {
+        if (answer == null || answer.action == null) return new Outcome(answer, 0L);
+        if (isSearch(answer.action) && !asksToSearch(userText)) {
+            Log.i(TAG, "answer only: the user did not ask for a web search");
+            return new Outcome(answer, 0L);
+        }
         try {
             DeviceActions.Result result = DeviceActions.perform(app, answer.action);
             if (result != null) Log.i(TAG, "action: " + result.log);
+            GeminiClient.Answer shown = answer;
             if (result != null && result.say != null && result.say.length() > 0) {
-                return new GeminiClient.Answer(answer.transcript, result.say, null);
+                shown = new GeminiClient.Answer(answer.transcript, result.say, null);
             }
-            return answer;
+            return new Outcome(shown, result == null ? 0L : result.cardMillis);
         } catch (Throwable t) {
             String reason = messageOf(t);
             Log.w(TAG, "action failed: " + reason);
             String text = answer.answer;
             if (text.length() > 0) text = text + " ";
-            return new GeminiClient.Answer(answer.transcript, text + reason, null);
+            return new Outcome(new GeminiClient.Answer(answer.transcript, text + reason, null), 0L);
         }
     }
 
+    private static boolean isSearch(JSONObject action) {
+        String name = action.optString("name", "");
+        name = name.toLowerCase(Locale.US).replaceAll("[^a-z0-9]", "");
+        return name.equals("search") || name.equals("websearch") || name.equals("google")
+                || name.equals("browse") || name.equals("lookup");
+    }
+
+    private static boolean asksToSearch(String text) {
+        if (text == null || text.length() == 0) return false;
+        String lower = text.toLowerCase(Locale.US);
+        return lower.contains("search") || lower.contains("google") || lower.contains("browse")
+                || lower.contains("look up") || lower.contains("lookup") || lower.contains("online")
+                || lower.contains("internet") || lower.contains("website") || lower.contains("web site");
+    }
+
     private static void showAnswer(final Activity activity, final Context app, final Settings cfg,
-                                   final String transcript, final String answer, final int id) {
+                                   final String transcript, final String answer, final long cardMillis,
+                                   final int id) {
         if (answer == null || answer.length() == 0) {
             postMessage(activity, app, "Gemini returned an empty answer.", false);
             return;
@@ -161,8 +201,13 @@ final class TurnController {
                 if (transcript != null && transcript.length() > 0) {
                     Ui.bubble(activity, "USER", transcript);
                 }
-                boolean shown = Ui.bubble(activity, "VLINGO", answer);
-                if (!shown) Ui.toast(app, answer);
+                boolean shown;
+                if (cardMillis > 0 && Ui.timerCard(activity, cardMillis)) {
+                    shown = true;
+                } else {
+                    shown = Ui.bubble(activity, "VLINGO", answer);
+                    if (!shown) Ui.toast(app, answer);
+                }
                 if (cfg.speak && shown) Tts.speak(app, answer);
                 finish(activity);
             }

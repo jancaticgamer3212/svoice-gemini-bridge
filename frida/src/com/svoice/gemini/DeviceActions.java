@@ -47,14 +47,21 @@ final class DeviceActions {
     static final class Result {
         final String log;
         final String say;
+        /** Non-zero when S Voice should show its own countdown card for this many milliseconds. */
+        final long cardMillis;
 
         Result(String log) {
-            this(log, null);
+            this(log, null, 0L);
         }
 
         Result(String log, String say) {
+            this(log, say, 0L);
+        }
+
+        Result(String log, String say, long cardMillis) {
             this.log = log == null ? "" : log;
             this.say = say;
+            this.cardMillis = cardMillis;
         }
     }
 
@@ -172,7 +179,7 @@ final class DeviceActions {
         if (label.length() > 0) intent.putExtra(AlarmClock.EXTRA_MESSAGE, label);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         start(ctx, intent, "I could not set the timer on this phone.");
-        return new Result("timer set for " + durationText(seconds));
+        return new Result("timer set for " + durationText(seconds), null, seconds * 1000L);
     }
 
     private static Result event(Context ctx, JSONObject action) throws Exception {
