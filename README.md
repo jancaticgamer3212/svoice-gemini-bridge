@@ -90,9 +90,9 @@ permissions are declared.
 
 ## No-root assistant (fallback)
 
-S Voice cannot be hooked without root or Xposed, so the S Voice bridge is root-only. When the
-app cannot get root, the **Bridge control** status shows `Root: denied` and an
-**Open no-root assistant (fallback)** button appears.
+S Voice cannot be hooked without root or Xposed, so the S Voice bridge is root-only. The app
+always shows an **Open no-root assistant (no root needed)** button under the bridge controls,
+so the fallback is reachable on rooted and unrooted phones alike.
 
 That screen is a small assistant of its own: Android's speech recognizer (or the text field)
 feeds Gemini, the answer is shown and spoken with TTS, and calls, text messages, alarms and
