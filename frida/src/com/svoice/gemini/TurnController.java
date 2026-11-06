@@ -132,8 +132,11 @@ final class TurnController {
     private static GeminiClient.Answer performAction(Context app, GeminiClient.Answer answer) {
         if (answer == null || answer.action == null) return answer;
         try {
-            String result = DeviceActions.perform(app, answer.action);
-            Log.i(TAG, "action: " + result);
+            DeviceActions.Result result = DeviceActions.perform(app, answer.action);
+            if (result != null) Log.i(TAG, "action: " + result.log);
+            if (result != null && result.say != null && result.say.length() > 0) {
+                return new GeminiClient.Answer(answer.transcript, result.say, null);
+            }
             return answer;
         } catch (Throwable t) {
             String reason = messageOf(t);

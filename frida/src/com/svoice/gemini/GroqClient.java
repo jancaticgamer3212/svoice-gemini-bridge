@@ -58,7 +58,8 @@ final class GroqClient {
 
     private static GeminiClient.Answer chatAnswer(Context ctx, Settings cfg, String text)
             throws Exception {
-        return GeminiClient.parse(chat(ctx, cfg, Settings.TEXT_PROMPT + "\n\nUser: " + text));
+        return GeminiClient.parse(chat(ctx, cfg,
+                Settings.TEXT_PROMPT + Settings.timeContext() + "\n\nUser: " + text));
     }
 
     static String testKey(Context ctx, Settings cfg) throws Exception {

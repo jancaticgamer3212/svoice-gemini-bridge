@@ -143,16 +143,26 @@ public class AssistantActivity extends Activity {
                 }
                 try {
                     GeminiClient.Answer answer = Assistant.askText(AssistantActivity.this, cfg, text);
-                    String extra = null;
+                    String reply = answer.answer;
+                    String note = null;
                     if (answer.action != null) {
                         try {
-                            DeviceActions.perform(getApplicationContext(), answer.action);
+                            DeviceActions.Result result = DeviceActions.perform(
+                                    getApplicationContext(), answer.action);
+                            if (result != null) {
+                                note = result.log;
+                                if (result.say != null && result.say.length() > 0) {
+                                    reply = result.say;
+                                }
+                            }
                         } catch (Throwable t) {
-                            extra = t.getMessage();
+                            note = t.getMessage();
                             Log.w(TAG, "action failed", t);
+                            reply = reply + (reply.length() > 0 ? " " : "") + note;
                         }
                     }
-                    done(answer.answer + (extra == null ? "" : " " + extra), true, cfg);
+                    if (note != null) append("Action: " + note);
+                    done(reply, true, cfg);
                 } catch (Throwable t) {
                     Log.w(TAG, "request failed", t);
                     String msg = t.getMessage();

@@ -8,6 +8,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 final class Settings {
     static final String MODULE_PACKAGE = "com.svoice.gemini";
@@ -24,22 +27,49 @@ final class Settings {
             + "emoji or stage directions, because your reply is spoken aloud. Never claim to have "
             + "performed an action on the phone that you cannot perform.";
 
-    static final String DEFAULT_SYSTEM_PROMPT =
+    /** Four-action prompt from 2.7; replaced on load now that the action set is wider. */
+    static final String PREVIOUS_SYSTEM_PROMPT =
             "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
             + "the user used. Be concise and conversational: one to three short sentences. Never use "
             + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. You can "
             + "call, send text messages and set alarms or timers on the phone when the user asks; only "
             + "say an action happened if the action object below was returned.";
 
+    static final String DEFAULT_SYSTEM_PROMPT =
+            "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
+            + "the user used. Be concise and conversational: one to three short sentences. Never use "
+            + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. When the "
+            + "user asks, you can call or text someone, send an email, set alarms and timers, add "
+            + "calendar events, open apps, search the web, give directions, play and control music, open "
+            + "the camera, add contacts, read the latest message, open settings and turn Wi-Fi or "
+            + "Bluetooth on or off. Only say something happened when the action object below was returned.";
+
     static final String ACTION_PROMPT =
-            " If the user asks you to call someone, send a text message, set an alarm or set a timer, "
-            + "include an \"action\" object. Use one of these shapes and fill in what the user said:\n"
-            + "{\"name\":\"call\",\"number\":\"+15551234567\"} or {\"contact\":\"Mom\"}\n"
+            " If the user asks you to do something on the phone, include an \"action\" object. Use one "
+            + "of these shapes, keeping the values the user said:\n"
+            + "{\"name\":\"call\",\"contact\":\"Mom\"} or {\"name\":\"call\",\"number\":\"+15551234567\"}\n"
             + "{\"name\":\"sms\",\"contact\":\"Mom\",\"message\":\"On my way\"}\n"
-            + "{\"name\":\"alarm\",\"hour\":7,\"minute\":30,\"label\":\"Wake up\"} (24-hour clock)\n"
+            + "{\"name\":\"email\",\"contact\":\"Mom\",\"subject\":\"Dinner\",\"message\":\"See you at 7\"}\n"
+            + "{\"name\":\"alarm\",\"hour\":7,\"minute\":30,\"label\":\"Wake up\"}\n"
             + "{\"name\":\"timer\",\"seconds\":300,\"label\":\"Pasta\"}\n"
-            + "If no action is needed, omit the action field or set it to null. Resolve currencies, "
-            + "units and times to the plain values shown above. Never invent a phone number.";
+            + "{\"name\":\"event\",\"title\":\"Dentist\",\"date\":\"2026-11-07\",\"startTime\":\"15:00\","
+            + "\"endTime\":\"16:00\",\"location\":\"Clinic\"}\n"
+            + "{\"name\":\"open\",\"app\":\"Camera\"}\n"
+            + "{\"name\":\"search\",\"query\":\"weather tomorrow\"}\n"
+            + "{\"name\":\"navigate\",\"destination\":\"Eiffel Tower\"}\n"
+            + "{\"name\":\"music\",\"query\":\"Queen\"} or {\"name\":\"media\",\"command\":\"pause\"} "
+            + "(play, pause, next, previous, stop)\n"
+            + "{\"name\":\"photo\"} or {\"name\":\"video\"}\n"
+            + "{\"name\":\"contact\",\"name\":\"John\",\"number\":\"+15551234567\",\"email\":\"j@example.com\"}\n"
+            + "{\"name\":\"read_sms\",\"contact\":\"Mom\"}\n"
+            + "{\"name\":\"settings\",\"screen\":\"wifi\"} (wifi, bluetooth, display, sound, battery, apps, "
+            + "date, security, location, storage, data, airplane)\n"
+            + "{\"name\":\"wifi\",\"state\":\"on\"} or {\"name\":\"bluetooth\",\"state\":\"off\"}\n"
+            + "{\"name\":\"volume\",\"level\":\"up\"} (up, down, mute, max)\n"
+            + "Use a 24-hour clock for alarm hour and times; days are 1=Monday to 7=Sunday and only for "
+            + "repeating alarms. If no action is needed, omit the action field or set it to null. Resolve "
+            + "currencies, units and times to the plain values shown above. Never invent a phone number, "
+            + "email address or calendar entry.";
 
     static final String AUDIO_PROMPT =
             "First transcribe the user's speech verbatim in the language spoken. Then answer it as the "
@@ -53,6 +83,17 @@ final class Settings {
             + "only a JSON object with the string field {\"answer\": \"...\"} and, when an action is "
             + "required, the \"action\" object described below. The answer must be plain text."
             + ACTION_PROMPT;
+
+    /** The model has no clock, so every request carries the phone's local date and time. */
+    static String timeContext() {
+        String now;
+        try {
+            now = new SimpleDateFormat("yyyy-MM-dd HH:mm, EEEE", Locale.US).format(new Date());
+        } catch (Throwable t) {
+            now = "";
+        }
+        return now.length() == 0 ? "" : " The current local date and time is " + now + ".";
+    }
 
     boolean enabled = true;
     String apiKey = "";
@@ -86,7 +127,8 @@ final class Settings {
         s.groqKey = o.optString("groqKey", "");
         s.groqModel = o.optString("groqModel", DEFAULT_GROQ_MODEL);
         s.systemPrompt = o.optString("systemPrompt", DEFAULT_SYSTEM_PROMPT);
-        if (LEGACY_SYSTEM_PROMPT.equals(s.systemPrompt.trim())) {
+        String prompt = s.systemPrompt == null ? "" : s.systemPrompt.trim();
+        if (LEGACY_SYSTEM_PROMPT.equals(prompt) || PREVIOUS_SYSTEM_PROMPT.equals(prompt)) {
             s.systemPrompt = DEFAULT_SYSTEM_PROMPT;
         }
         s.speak = o.optBoolean("speak", true);

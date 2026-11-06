@@ -95,15 +95,35 @@ always shows an **Open no-root assistant (no root needed)** button under the bri
 so the fallback is reachable on rooted and unrooted phones alike.
 
 That screen is a small assistant of its own: Android's speech recognizer (or the text field)
-feeds Gemini, the answer is shown and spoken with TTS, and calls, text messages, alarms and
-timers are carried out through normal Android intents. It never touches S Voice, so there is no
-bubble UI and no "Hi Galaxy" wake word. The first install asks for call, SMS, contacts and
-microphone permissions for exactly these features; on Android 5.x they are granted at install.
+feeds Gemini, the answer is shown and spoken with TTS, and the phone actions are carried out
+through normal Android intents. It never touches S Voice, so there is no bubble UI and no
+"Hi Galaxy" wake word. The first install asks for call, SMS, contacts, calendar and microphone
+permissions for exactly these features; on Android 5.x they are granted at install.
 
-The same four actions work in the rooted S Voice bridge: asking S Voice to call, text, set an
-alarm or set a timer returns an `action` object from Gemini or Groq, and the bridge executes it
-with S Voice's own permissions before it speaks the confirmation. If an action fails, the reason
-is spoken instead of a false success.
+The same actions are available in the rooted S Voice bridge: the model returns an `action`
+object, and the bridge executes it with S Voice's own permissions before it speaks the
+confirmation. If an action fails, the reason is spoken instead of a false success.
+
+| Ask for | Action |
+| --- | --- |
+| "call Mom", "call 5551234" | Places the call (falls back to the dialer if calling is blocked) |
+| "text Alex on my way" | Sends the SMS with the phone's default SIM |
+| "email Mom about dinner" | Opens an email draft to the contact's address |
+| "set an alarm for 7:30", "every weekday at 6" | Sets the alarm, optionally repeating |
+| "set a timer for 10 minutes" | Starts the clock timer |
+| "meeting with Sam tomorrow at 3" | Adds the event to the default calendar |
+| "open Camera", "launch WhatsApp" | Starts the app by name |
+| "search for the Eiffel Tower" | Opens web search for the query |
+| "navigate to the train station" | Opens maps with the destination |
+| "play Queen", "pause", "next track" | Searches the music app or sends media keys |
+| "take a photo", "record a video" | Opens the camera in still/video mode |
+| "add John as a contact" | Opens the contact editor pre-filled |
+| "read my latest message" | Reads the newest SMS aloud |
+| "open Wi-Fi settings" | Opens the matching Settings screen |
+| "turn Wi-Fi off", "turn Bluetooth on" | Toggles the radio (subject to app permissions) |
+| "volume up", "mute" | Adjusts the music volume |
+
+Email, contacts and camera open the stock app pre-filled rather than sending silently.
 
 ## Frida install from a PC
 
@@ -195,9 +215,13 @@ ASR_THINKING / IDLE)`, `DialogFragment.addDialogBubble(USER / VLINGO / ERROR, â€
 ## Behaviour and limitations
 
 * **All** requests go to Gemini, including phrases S Voice would normally execute locally
-  ("call mom", "set an alarm"). The assistant now performs calls, texts, alarms and timers by
-  returning an action the bridge executes; other device features still become conversational
-  answers, because interception happens before S Voice's own command handling.
+  ("call mom", "set an alarm"). The assistant performs the phone actions listed under
+  [No-root assistant](#no-root-assistant-fallback) by returning an action the bridge executes;
+  commands outside that list still become conversational answers, because interception happens
+  before S Voice's own command handling.
+* Actions that need a radio toggle run with the host app's permissions. The no-root assistant
+  declares Wi-Fi/Bluetooth permissions; inside S Voice the same calls use S Voice's own
+  permissions, so a toggle it was never granted is refused with a spoken reason.
 * The **"Hi Galaxy" wake word is not bridged**. It uses Samsung's own wake-up recorder; the
   module deliberately leaves that path untouched instead of fighting it for the microphone.
   Tap the mic instead.

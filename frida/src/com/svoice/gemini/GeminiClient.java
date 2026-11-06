@@ -51,41 +51,48 @@ final class GeminiClient {
     private GeminiClient() {}
 
     static Answer askAudio(Context ctx, Settings cfg, byte[] wav) throws Exception {
-        String raw = request(ctx, cfg, Settings.AUDIO_PROMPT, wav);
+        String raw = request(ctx, cfg, Settings.AUDIO_PROMPT + Settings.timeContext(), wav, true);
         return parse(raw);
     }
 
     static Answer askText(Context ctx, Settings cfg, String text) throws Exception {
-        String raw = request(ctx, cfg, Settings.TEXT_PROMPT + "\n\nUser: " + text, null);
+        String raw = request(ctx, cfg,
+                Settings.TEXT_PROMPT + Settings.timeContext() + "\n\nUser: " + text, null, true);
         return parse(raw);
     }
 
     static String testKey(Context ctx, Settings cfg) throws Exception {
-        return request(ctx, cfg, "Reply with the single word OK.", null);
+        return request(ctx, cfg, "Reply with the single word OK.", null, false);
     }
 
-    private static String request(Context ctx, Settings cfg, String userText, byte[] wav) throws Exception {
+    private static String request(Context ctx, Settings cfg, String userText, byte[] wav, boolean json)
+            throws Exception {
         String model = modelOf(cfg);
         try {
-            return withRetries(ctx, cfg, model, userText, wav);
+            return withRetries(ctx, cfg, model, userText, wav, json);
         } catch (ApiException e) {
             if (!isBusy(e.code) || FALLBACK_MODEL.equals(model)) throw e;
-            return withRetries(ctx, cfg, FALLBACK_MODEL, userText, wav);
+            return withRetries(ctx, cfg, FALLBACK_MODEL, userText, wav, json);
         }
     }
 
     private static String withRetries(Context ctx, Settings cfg, String model,
-                                      String userText, byte[] wav) throws Exception {
+                                      String userText, byte[] wav, boolean json) throws Exception {
         boolean thinking = supportsThinkingConfig(model);
         ApiException last = null;
         for (int attempt = 0; attempt < BUSY_ATTEMPTS; attempt++) {
             try {
-                return doRequest(ctx, cfg, model, userText, wav, thinking);
+                return doRequest(ctx, cfg, model, userText, wav, thinking, json);
             } catch (ApiException e) {
                 last = e;
                 String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
                 if (thinking && e.code == 400 && msg.contains("thinking")) {
                     thinking = false;
+                    attempt--;
+                    continue;
+                }
+                if (json && e.code == 400 && msg.contains("mime")) {
+                    json = false;
                     attempt--;
                     continue;
                 }
@@ -120,7 +127,7 @@ final class GeminiClient {
     }
 
     private static String doRequest(Context ctx, Settings cfg, String modelOverride, String userText,
-                                    byte[] wav, boolean disableThinking) throws Exception {
+                                    byte[] wav, boolean disableThinking, boolean json) throws Exception {
         if (cfg.apiKey == null || cfg.apiKey.length() == 0) {
             throw new ApiException(0, "No API key configured. Open S Voice Gemini Bridge and paste your key.");
         }
@@ -155,6 +162,7 @@ final class GeminiClient {
         JSONObject gen = new JSONObject();
         gen.put("temperature", 0.4);
         gen.put("maxOutputTokens", 2048);
+        if (json) gen.put("responseMimeType", "application/json");
         if (disableThinking) {
             gen.put("thinkingConfig", new JSONObject().put("thinkingBudget", 0));
         }
@@ -233,6 +241,15 @@ final class GeminiClient {
                 String transcript = o.optString("transcript", "").trim();
                 String answer = o.optString("answer", "").trim();
                 JSONObject action = o.optJSONObject("action");
+                if (action == null) {
+                    Object rawAction = o.opt("action");
+                    if (rawAction instanceof String && ((String) rawAction).trim().startsWith("{")) {
+                        try {
+                            action = new JSONObject(((String) rawAction).trim());
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
                 if (answer.length() > 0) {
                     return new Answer(transcript, cleanAnswer(answer), action);
                 }
