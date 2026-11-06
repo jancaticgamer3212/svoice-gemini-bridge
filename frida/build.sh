@@ -44,7 +44,7 @@ javac -source 8 -target 8 -bootclasspath "$AJ" \
   -d "$B/classes" $(find "$APP/src" "$B/gen" -name '*.java')
 
 jar cf "$B/classes.jar" -C "$B/classes" .
-"$BT/d8.bat" --min-api 21 --lib "$AJ" --output "$B/dex" "$B/classes.jar"
+"$BT/d8.bat" --min-api 18 --lib "$AJ" --output "$B/dex" "$B/classes.jar"
 
 cp "$B/base.apk" "$B/app.apk"
 (cd "$B/dex" && jar uf ../app.apk classes.dex)
@@ -62,7 +62,7 @@ fi
 
 "$BT/apksigner.bat" sign --ks "$KS" --ks-key-alias svoice \
   --ks-pass pass:svoicegemini --key-pass pass:svoicegemini \
-  --min-sdk-version 21 --out "$OUT" "$B/app-aligned.apk"
+  --min-sdk-version 18 --out "$OUT" "$B/app-aligned.apk"
 "$BT/apksigner.bat" verify --print-certs "$OUT"
 
 echo "built: $OUT ($(du -h "$OUT" | cut -f1))"

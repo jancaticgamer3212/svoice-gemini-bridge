@@ -6,10 +6,10 @@ modified.
 
 There are two ways to load the bridge:
 
-* **Frida bridge** (`S-Voice-Gemini-Frida.apk` + `frida/`) — no Xposed, works on rooted 5.0.x and
-  5.1.1 including arm64. Use this one: there is no working Xposed for Samsung 5.0.x arm64. The
-  APK carries the Frida injectors and the bridge scripts, so it sets itself up on the phone
-  without a PC.
+* **Frida bridge** (`S-Voice-Gemini-Frida.apk` + `frida/`) — no Xposed, works on rooted Android
+  4.3, 4.4, 5.0.x and 5.1.1, including arm64. Use this one: there is no working Xposed for
+  Samsung 5.0.x arm64. The APK carries the Frida injectors and the bridge scripts, so it sets
+  itself up on the phone without a PC.
 
 * **Xposed module** (`S-Voice-Gemini-Bridge.apk`) — only for a ROM with a compatible Xposed
   framework (for Samsung 5.1.1 arm64, e.g. wanam's builds).
@@ -47,10 +47,13 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
 
 ## Requirements
 
-* Any rooted Samsung phone running **S Voice 11.8.0.0 or 11.9.0.0** (`com.vlingo.midas`).
-  Verified on SM-G925F (Android 5.0.2, S Voice 11.8.0.0) and SM-A310F (Android 5.1.1,
-  S Voice 11.9.0.0). The bridge hooks classes inside S Voice, so it is not tied to a phone
-  model; the limits are S Voice's own Samsung dependencies.
+* Any rooted Samsung phone running **S Voice 10.x or 11.x** (`com.vlingo.midas`), on **Android
+  4.3 (API 18) or newer**. The Frida build and the bridge APK target API 18; Android 4.0–4.2 is
+  not supported because the bundled Frida 12.8.20 injector needs Android 4.3. Verified on
+  SM-G925F (Android 5.0.2, S Voice 11.8.0.0) and SM-A310F (Android 5.1.1, S Voice 11.9.0.0).
+  The S Voice 10.x internals are detected at run time by signature rather than by version; see
+  **Android 4 notes** below. The bridge hooks classes inside S Voice, so it is not tied to a
+  phone model; the limits are S Voice's own Samsung dependencies.
 * Root (`su`). The Frida APK needs nothing else and can install and attach itself on the phone,
   so no PC or adb is required; the Xposed route additionally needs a compatible framework.
 * Xposed only: a framework build that matches your ROM. For a 64-bit Samsung ROM that means
@@ -59,6 +62,20 @@ microphone tap ──► DialogFlow.startUserFlow(...)  (hooked)
   a key but its hooks cannot run.
 * A Gemini API key from Google AI Studio: <https://aistudio.google.com/app/apikey>.
 * Network access on the phone.
+
+## Android 4 notes
+
+* **4.3 (API 18) is the floor.** The bundled Frida 12.8.20 injector is built for Android 4.3;
+  Android 4.0–4.2 will install the app but the payload cannot run there.
+* The APK uses the Holo theme below Android 5 and the Material theme on 5.0+, and turns on
+  TLS 1.2 explicitly because Android 4.3/4.4 do not enable it by default while Gemini and Groq
+  require it.
+* S Voice 10.x does not use the same `DialogFlow.startUserFlow` signatures as 11.x. The bridge
+  now hooks every voice and typed overload it finds and skips the stream-only wake-word one.
+  The injector log prints the S Voice version and each hooked signature, so a mismatch is
+  visible in `/data/local/tmp/svoice-gemini/bridge.log`.
+* On Android 4.x `/system/bin/app_process` has no 32/64 suffix, so the scripts use the 32-bit
+  injector, which is the only kind that exists on those devices.
 
 ## Download
 

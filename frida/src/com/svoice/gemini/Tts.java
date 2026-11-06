@@ -1,6 +1,7 @@
 package com.svoice.gemini;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 
@@ -56,7 +57,12 @@ final class Tts {
         } catch (Throwable ignored) {
         }
         try {
-            engine.speak(text, TextToSpeech.QUEUE_FLUSH, (Bundle) null, "svoice-gemini");
+            if (Build.VERSION.SDK_INT >= 21) {
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, (Bundle) null, "svoice-gemini");
+            } else {
+                // The four-argument speak() is API 21.
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+            }
         } catch (Throwable ignored) {
         }
     }

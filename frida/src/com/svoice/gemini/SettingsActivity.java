@@ -24,7 +24,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -549,7 +548,7 @@ public class SettingsActivity extends Activity {
         if (f == null) return;
         FileOutputStream out = new FileOutputStream(f);
         try {
-            out.write(json.getBytes(StandardCharsets.UTF_8));
+            out.write(json.getBytes(Charsets.UTF8));
         } finally {
             out.close();
         }

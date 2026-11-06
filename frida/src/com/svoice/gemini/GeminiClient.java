@@ -11,7 +11,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -168,7 +167,7 @@ final class GeminiClient {
         }
         body.put("generationConfig", gen);
 
-        byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
+        byte[] payload = body.toString().getBytes(Charsets.UTF8);
         URL url = new URL(ENDPOINT + model + ":generateContent");
         HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
         try {
@@ -302,7 +301,7 @@ final class GeminiClient {
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+            return new String(out.toByteArray(), Charsets.UTF8);
         } finally {
             try { in.close(); } catch (Throwable ignored) {}
         }

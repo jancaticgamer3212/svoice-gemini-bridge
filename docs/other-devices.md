@@ -22,16 +22,20 @@ S Voice 11.8.0.0 is `minSdkVersion 16`, `targetSdkVersion 19`, and declares a la
 
 | Target | Expectation |
 | --- | --- |
+| Samsung with S Voice 10.x, Android 4.3–4.4 | Supported since 3.0; 32-bit only. The bridge hooks whichever `startUserFlow` overloads exist and logs them |
 | Samsung with S Voice 11.8/11.9, Android 5.x–7.x | Closest to the original; full bridge behaviour (verified on SM-G925F 5.0.2 and SM-A310F 5.1.1) |
+| Samsung, Android 4.0–4.2 | Not supported: the bundled Frida 12.8.20 injector is built for Android 4.3 (API 18) |
 | Other Samsung, Android 8–9 | Core tap-to-talk flow usually works; wake word and Samsung app integrations degrade |
 | Non-Samsung, Android 5–9 | S Voice installs and the voice flow can work; every Samsung-only integration is gone, wake word almost certainly not functional |
 | Android 10 | Installs and attaches; Frida 12.8.20 still works here |
 | Android 11+ | Installs (the APK is pure Java), but needs a newer Frida release and a port of `bridge.js` |
 
 The bridge has only been exercised against **11.8.0.0** and **11.9.0.0** — on an SM-G925F
-(Android 5.0.2, 64-bit) and an SM-A310F (Android 5.1.1). Other versions will need
-`frida/bridge.js` re-checked — the hook target is
-`DialogFlow.startUserFlow(RecognitionMode, WakeUpContext, IAudioStream)`.
+(Android 5.0.2, 64-bit) and an SM-A310F (Android 5.1.1). S Voice 10.x on Android 4.3+ is
+handled by signature discovery rather than a fixed hook: `bridge.js` walks every
+`DialogFlow.startUserFlow` overload, hooks the voice and typed ones and prints the list to
+`/data/local/tmp/svoice-gemini/bridge.log`. If that log says `overloads hooked: 0`, the
+classes moved and the APK needs to be inspected.
 
 ## 1. Pull your own copy
 

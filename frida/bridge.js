@@ -119,48 +119,94 @@ function hookDialogFlow(Bridge) {
     return;
   }
 
+  var overloads;
   try {
-    var voice = DialogFlow.startUserFlow.overload(
-        'com.vlingo.core.facade.dialogflow.RecognitionMode',
-        'com.vlingo.core.internal.dialogmanager.WakeUpContext',
-        'com.vlingo.core.api.audio.IAudioStream');
-    voice.implementation = function (mode, wakeContext, stream) {
-      var handled = false;
-      try {
-        handled = Bridge.onVoice(stream);
-      } catch (e) {
-        log('onVoice failed: ' + e);
-      }
-      if (handled) {
-        log('microphone turn taken over');
-        return true;
-      }
-      return voice.call(this, mode, wakeContext, stream);
-    };
-    log('hooked DialogFlow.startUserFlow(RecognitionMode, WakeUpContext, IAudioStream)');
+    overloads = DialogFlow.startUserFlow.overloads;
   } catch (e) {
-    log('voice hook failed: ' + e);
+    log('startUserFlow not available: ' + e);
+    return;
   }
 
-  try {
-    var typed = DialogFlow.startUserFlow.overload('java.lang.String', 'java.lang.Object');
-    typed.implementation = function (utterance, state) {
-      var handled = false;
-      try {
-        handled = Bridge.onText(utterance);
-      } catch (e) {
-        log('onText failed: ' + e);
+  // S Voice 10.x and 11.x do not share one signature set: the Android 4 builds have no
+  // IAudioStream parameter on the microphone overload and differ on the typed one. Hook
+  // whatever exists instead of naming a single signature.
+  var hooked = 0;
+  var streamOnly = null;
+  for (var i = 0; i < overloads.length; i++) {
+    var overload = overloads[i];
+    var types = [];
+    var voice = false;
+    var text = false;
+    for (var j = 0; j < overload.argumentTypes.length; j++) {
+      var name = overload.argumentTypes[j].className;
+      types.push(name);
+      if (j === 0 && name === 'java.lang.String') text = true;
+      if (name.indexOf('RecognitionMode') >= 0) voice = true;
+    }
+    // The stream-only overload is the "Hi Galaxy" path on 11.x; leave that to S Voice
+    // unless it is the only voice entry this S Voice build has.
+    if (!voice && !text) {
+      if (types.length === 1 && types[0].indexOf('AudioStream') >= 0) {
+        streamOnly = overload;
+        log('found the stream-only startUserFlow(' + types[0] + ')');
+      } else {
+        log('skipping startUserFlow(' + types.join(', ') + ')');
       }
-      if (handled) {
-        log('typed turn taken over');
-        return true;
-      }
-      return typed.call(this, utterance, state);
-    };
-    log('hooked DialogFlow.startUserFlow(String, Object)');
-  } catch (e) {
-    log('text hook failed: ' + e);
+      continue;
+    }
+    if (overload.argumentTypes.length > 3) {
+      log('skipping startUserFlow(' + types.join(', ') + ')');
+      continue;
+    }
+    hookStartUserFlow(Bridge, overload, voice);
+    hooked++;
+    log('hooked startUserFlow(' + types.join(', ') + ') ' + (voice ? 'voice' : 'text'));
   }
+  if (hooked === 0 && streamOnly !== null) {
+    hookStartUserFlow(Bridge, streamOnly, true);
+    hooked++;
+    log('hooked the stream-only startUserFlow; it is the only voice entry here');
+  }
+  log('startUserFlow overloads hooked: ' + hooked);
+}
+
+function streamOf(args) {
+  for (var i = 0; i < args.length; i++) {
+    var value = args[i];
+    if (value === null || value === undefined) continue;
+    try {
+      var name = value.$className || '';
+      if (!name && value.getClass) name = value.getClass().getName();
+      if (name.indexOf('AudioStream') >= 0) return value;
+    } catch (e) {
+    }
+  }
+  return null;
+}
+
+function hookStartUserFlow(Bridge, overload, voice) {
+  var returnsBoolean = overload.returnType.className === 'boolean';
+  overload.implementation = function (a, b, c) {
+    var handled = false;
+    try {
+      if (voice) {
+        handled = Bridge.onVoice(streamOf(arguments));
+      } else if (typeof a === 'string') {
+        handled = Bridge.onText(a);
+      }
+    } catch (e) {
+      log('turn hook failed: ' + e);
+    }
+    if (handled) {
+      log((voice ? 'microphone' : 'typed') + ' turn taken over');
+      return returnsBoolean ? true : undefined;
+    }
+    var count = arguments.length;
+    if (count === 0) return overload.call(this);
+    if (count === 1) return overload.call(this, a);
+    if (count === 2) return overload.call(this, a, b);
+    return overload.call(this, a, b, c);
+  };
 }
 
 Java.perform(function () {
@@ -178,6 +224,14 @@ Java.perform(function () {
   if (application === null) {
     log('no Application after 60s, giving up');
     return;
+  }
+
+  try {
+    var info = application.getPackageManager().getPackageInfo('com.vlingo.midas', 0);
+    log('S Voice ' + textOf(info.versionName) + ' (' + info.versionCode + ') on Android '
+        + textOf(Java.use('android.os.Build$VERSION').RELEASE.value));
+  } catch (e) {
+    log('could not read the S Voice version: ' + e);
   }
 
   var Bridge;

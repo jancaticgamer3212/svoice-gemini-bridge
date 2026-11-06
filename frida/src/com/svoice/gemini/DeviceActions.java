@@ -17,7 +17,6 @@ import android.provider.CalendarContract;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.provider.Telephony;
 import android.telephony.SmsManager;
 import android.view.KeyEvent;
 
@@ -386,7 +385,7 @@ final class DeviceActions {
         Cursor cursor = null;
         try {
             cursor = ctx.getContentResolver().query(
-                    Telephony.Sms.Inbox.CONTENT_URI,
+                    Uri.parse("content://sms/inbox"),
                     new String[]{"address", "body"},
                     filter ? "address=?" : null,
                     filter ? new String[]{number} : null,

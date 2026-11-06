@@ -57,7 +57,7 @@ exe=$(ls -l /proc/$pid/exe 2>/dev/null)
 case "$exe" in
   *app_process64*) INJECT="$DIR/frida-inject64" ;;
   *app_process32*) INJECT="$DIR/frida-inject32" ;;
-  *) INJECT="$DIR/frida-inject64" ;;
+  *) INJECT="$DIR/frida-inject32" ;;
 esac
 
 if [ ! -x "$INJECT" ]; then

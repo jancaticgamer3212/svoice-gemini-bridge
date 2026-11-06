@@ -62,7 +62,7 @@ attach() {
   case "$exe" in
     *app_process32*) INJECT=$DIR/frida-inject32 ;;
     *app_process64*) INJECT=$DIR/frida-inject64 ;;
-    *) INJECT=$DIR/frida-inject64 ;;
+    *) INJECT=$DIR/frida-inject32 ;;
   esac
   if [ ! -x "$INJECT" ]; then
     log "missing $INJECT; tap Install Frida payload in the app"

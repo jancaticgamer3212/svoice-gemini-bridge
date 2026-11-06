@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme.Material does not exist before API 21. -->
+    <style name="AppTheme" parent="@android:style/Theme.Holo.Light.DarkActionBar" />
+</resources>

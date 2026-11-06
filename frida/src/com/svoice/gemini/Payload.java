@@ -86,7 +86,7 @@ final class Payload {
                 + "if [ -n \"$P\" ]; then\n"
                 + "  L=$(ls -l \"/proc/$P/exe\" 2>/dev/null)\n"
                 + "  case \"$L\" in *app_process64*) echo abi=64;; "
-                + "*app_process32*) echo abi=32;; *) echo abi=?;; esac\n"
+                + "*app_process32*) echo abi=32;; *) echo abi=32;; esac\n"
                 + "  grep -q frida \"/proc/$P/maps\" 2>/dev/null && echo attached=1 || echo attached=0\n"
                 + "else\n"
                 + "  echo abi=?\n"

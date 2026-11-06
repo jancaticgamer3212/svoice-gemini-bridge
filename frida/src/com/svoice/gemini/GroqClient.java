@@ -9,7 +9,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -154,7 +153,7 @@ final class GroqClient {
         }
 
         String raw = send(cfg, BASE + "/chat/completions", "application/json; charset=utf-8",
-                body.toString().getBytes(StandardCharsets.UTF_8));
+                body.toString().getBytes(Charsets.UTF8));
         JSONArray choices = new JSONObject(raw).optJSONArray("choices");
         if (choices == null || choices.length() == 0) {
             throw new Failure(0, "Groq returned no answer.");
@@ -228,7 +227,7 @@ final class GroqClient {
         String part = "--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
                 + value + "\r\n";
-        out.write(part.getBytes(StandardCharsets.UTF_8));
+        out.write(part.getBytes(Charsets.UTF8));
     }
 
     private static void writeFile(ByteArrayOutputStream out, String boundary, String name, String filename,
@@ -236,13 +235,13 @@ final class GroqClient {
         String head = "--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"\r\n"
                 + "Content-Type: " + type + "\r\n\r\n";
-        out.write(head.getBytes(StandardCharsets.UTF_8));
+        out.write(head.getBytes(Charsets.UTF8));
         out.write(data);
-        out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        out.write("\r\n".getBytes(Charsets.UTF8));
     }
 
     private static void writeEnd(ByteArrayOutputStream out, String boundary) throws Exception {
-        out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        out.write(("--" + boundary + "--\r\n").getBytes(Charsets.UTF8));
     }
 
     private static boolean isBusy(int code) {
@@ -290,7 +289,7 @@ final class GroqClient {
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+            return new String(out.toByteArray(), Charsets.UTF8);
         } finally {
             try { in.close(); } catch (Throwable ignored) {}
         }
