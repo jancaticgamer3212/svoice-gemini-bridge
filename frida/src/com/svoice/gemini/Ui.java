@@ -10,7 +10,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Locale;
 
 final class Ui {
     private static final String TAG = "SVoiceGeminiFrida";
@@ -58,9 +57,10 @@ final class Ui {
     }
 
     /**
-     * Shows S Voice's own countdown card by driving the widget builder exactly the way the
-     * original timer flow does. Returns false when the internals moved and the caller should
-     * fall back to a text bubble.
+     * Shows S Voice's own countdown card. The stock flow only starts the countdown from the
+     * card's add animation, and its initialize() resets the clock app timer; neither fits a
+     * turn answered from the bridge, so the card is rendered from TimerManager and the
+     * countdown is driven directly.
      */
     static boolean timerCard(Activity activity, long millis) {
         if (activity == null || millis < 1000L) return false;
@@ -70,20 +70,38 @@ final class Ui {
             if (instanceField(activity, "contentFragment") == null) return false;
             ClassLoader cl = activity.getClass().getClassLoader();
             Class<?> conversation = Class.forName("com.vlingo.midas.gui.ConversationActivity", false, cl);
+            Class<?> widgetClass = Class.forName("com.vlingo.midas.gui.Widget", false, cl);
             Class<?> builderClass = Class.forName("com.vlingo.midas.gui.WidgetBuilder", false, cl);
-            Constructor<?> ctor = builderClass.getDeclaredConstructor(conversation);
-            ctor.setAccessible(true);
-            Object builder = ctor.newInstance(activity);
-
+            Class<?> managerClass = Class.forName("com.vlingo.midas.gui.timer.TimerManager", false, cl);
+            Class<?> timerWidgetClass = Class.forName("com.vlingo.midas.gui.widgets.TimerWidget", false, cl);
+            Class<?> counterClass = Class.forName("android.os.CountDownTimer", false, cl);
             Class<?> keyClass = Class.forName(
                     "com.vlingo.core.internal.dialogmanager.util.WidgetUtil$WidgetKey", false, cl);
-            Object key = enumValue(keyClass, "SetTimer");
             Class<?> decorClass = Class.forName(
                     "com.vlingo.core.internal.dialogmanager.WidgetDecorator", false, cl);
-            Method startCmd = decorClass.getDeclaredMethod("makeTimerStartCmd");
-            startCmd.setAccessible(true);
-            Object decor = startCmd.invoke(null);
+
+            Object key = enumValue(keyClass, "SetTimer");
+            Method showCmd = decorClass.getDeclaredMethod("makeTimerShowCmd");
+            showCmd.setAccessible(true);
+            Object decor = showCmd.invoke(null);
             if (key == null || decor == null) return false;
+
+            long seconds = millis / 1000L;
+            long exact = seconds * 1000L;
+            int hours = (int) (seconds / 3600L);
+            int minutes = (int) ((seconds / 60L) % 60L);
+            int secs = (int) (seconds % 60L);
+
+            Object running = staticField(managerClass, "timer");
+            if (counterClass.isInstance(running)) counterClass.getMethod("cancel").invoke(running);
+
+            // Seed the manager before inflation: onFinishInflate paints the card from it.
+            setStatic(managerClass, "inputMillis", exact);
+            setStatic(managerClass, "remainMillis", exact);
+            setStatic(managerClass, "hour", hours);
+            setStatic(managerClass, "minute", minutes);
+            setStatic(managerClass, "second", secs);
+            setStatic(timerWidgetClass, "needStartTimer", Boolean.FALSE);
 
             Class<?> listenerClass = Class.forName(
                     "com.vlingo.core.internal.dialogmanager.vvs.WidgetActionListener", false, cl);
@@ -104,13 +122,36 @@ final class Ui {
                         }
                     });
 
-            long seconds = millis / 1000L;
-            String canonical = String.format(Locale.US, "+%02d:%02d:%02d",
-                    seconds / 3600L, (seconds / 60L) % 60L, seconds % 60L);
-            Method show = builderClass.getMethod("showWidget",
+            Constructor<?> ctor = builderClass.getDeclaredConstructor(conversation);
+            ctor.setAccessible(true);
+            Object builder = ctor.newInstance(activity);
+
+            // An empty time string keeps initialize() from resetting, which would broadcast
+            // TIMER_RESET and stop the timer the clock app has already started.
+            Method build = builderClass.getDeclaredMethod("buildWidget",
                     keyClass, decorClass, Object.class, listenerClass);
-            show.setAccessible(true);
-            show.invoke(builder, key, decor, canonical, listener);
+            build.setAccessible(true);
+            Object widget = build.invoke(builder, key, decor, "", listener);
+            if (widget == null) return false;
+
+            Method add = findMethod(conversation, "addWidget", widgetClass);
+            if (add == null) return false;
+            add.setAccessible(true);
+            add.invoke(activity, widget);
+
+            try {
+                setStatic(timerWidgetClass, "needStartTimer", Boolean.FALSE);
+                Method setState = findMethod(managerClass, "setState", int.class);
+                setState.setAccessible(true);
+                setState.invoke(null, 1);
+                Method setTimer = timerWidgetClass.getDeclaredMethod("setTimer", long.class);
+                setTimer.setAccessible(true);
+                setTimer.invoke(null, exact);
+                Object started = staticField(managerClass, "timer");
+                if (counterClass.isInstance(started)) counterClass.getMethod("start").invoke(started);
+            } catch (Throwable t) {
+                Log.w(TAG, "timer card shown without its countdown: " + t);
+            }
             return true;
         } catch (Throwable t) {
             Log.w(TAG, "timerCard failed: " + t);
@@ -164,6 +205,13 @@ final class Ui {
         if (f == null) return null;
         f.setAccessible(true);
         return f.get(null);
+    }
+
+    private static void setStatic(Class<?> owner, String name, Object value) throws Exception {
+        Field f = findField(owner, name);
+        if (f == null) throw new NoSuchFieldException(owner.getName() + "." + name);
+        f.setAccessible(true);
+        f.set(null, value);
     }
 
     private static Object instanceField(Object target, String name) throws Exception {

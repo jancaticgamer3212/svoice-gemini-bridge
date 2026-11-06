@@ -231,8 +231,8 @@ ASR_THINKING / IDLE)`, `DialogFragment.addDialogBubble(USER / VLINGO / ERROR, â€
 * Questions are answered in the bubble. The browser is only opened when you explicitly ask to
   search, google or browse; the bridge drops a model-requested search on any other request.
 * A timer request shows S Voice's own countdown card (the same widget the original app used)
-  instead of a text bubble. The card keeps ticking from the Samsung Clock app; if the widget
-  cannot be built, the answer falls back to a normal bubble.
+  instead of a text bubble, and the card counts down while the Samsung Clock app timer runs.
+  If the widget cannot be built, the answer falls back to a normal bubble.
 * S Voice 11.8.0.0 and 11.9.0.0 are supported and both were verified on real phones. Method
   names and fields differ between releases, so any other S Voice version needs the hook targets
   re-checked against `work/smali`.
