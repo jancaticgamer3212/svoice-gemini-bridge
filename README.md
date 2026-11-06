@@ -88,6 +88,23 @@ Tap **Install Frida payload** again after each APK update, because the scripts s
 APK. `su` is used only to copy the payload, read the bridge state and run the injector; no extra
 permissions are declared.
 
+## No-root assistant (fallback)
+
+S Voice cannot be hooked without root or Xposed, so the S Voice bridge is root-only. When the
+app cannot get root, the **Bridge control** status shows `Root: denied` and an
+**Open no-root assistant (fallback)** button appears.
+
+That screen is a small assistant of its own: Android's speech recognizer (or the text field)
+feeds Gemini, the answer is shown and spoken with TTS, and calls, text messages, alarms and
+timers are carried out through normal Android intents. It never touches S Voice, so there is no
+bubble UI and no "Hi Galaxy" wake word. The first install asks for call, SMS, contacts and
+microphone permissions for exactly these features; on Android 5.x they are granted at install.
+
+The same four actions work in the rooted S Voice bridge: asking S Voice to call, text, set an
+alarm or set a timer returns an `action` object from Gemini or Groq, and the bridge executes it
+with S Voice's own permissions before it speaks the confirmation. If an action fails, the reason
+is spoken instead of a false success.
+
 ## Frida install from a PC
 
 Only needed if you prefer adb. This route needs only root, not Xposed. It uses Frida 12.8.20,
@@ -178,8 +195,9 @@ ASR_THINKING / IDLE)`, `DialogFragment.addDialogBubble(USER / VLINGO / ERROR, â€
 ## Behaviour and limitations
 
 * **All** requests go to Gemini, including phrases S Voice would normally execute locally
-  ("call mom", "set an alarm"). Gemini cannot perform device actions, so those become
-  conversational answers. This is the trade-off of intercepting before recognition.
+  ("call mom", "set an alarm"). The assistant now performs calls, texts, alarms and timers by
+  returning an action the bridge executes; other device features still become conversational
+  answers, because interception happens before S Voice's own command handling.
 * The **"Hi Galaxy" wake word is not bridged**. It uses Samsung's own wake-up recorder; the
   module deliberately leaves that path untouched instead of fighting it for the microphone.
   Tap the mic instead.

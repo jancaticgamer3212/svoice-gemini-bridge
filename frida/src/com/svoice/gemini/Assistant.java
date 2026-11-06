@@ -33,11 +33,11 @@ final class Assistant {
         throw geminiError != null ? geminiError : missingKey();
     }
 
-    static String askText(Context ctx, Settings cfg, String text) throws Exception {
+    static GeminiClient.Answer askText(Context ctx, Settings cfg, String text) throws Exception {
         Exception geminiError = null;
         if (has(cfg.apiKey)) {
             try {
-                String answer = GeminiClient.askText(ctx, cfg, text);
+                GeminiClient.Answer answer = GeminiClient.askText(ctx, cfg, text);
                 Log.i(TAG, "answered by Gemini");
                 return answer;
             } catch (Exception e) {
@@ -46,7 +46,7 @@ final class Assistant {
             }
         }
         if (has(cfg.groqKey)) {
-            String answer = GroqClient.askText(ctx, cfg, text);
+            GeminiClient.Answer answer = GroqClient.askText(ctx, cfg, text);
             Log.i(TAG, "answered by Groq");
             return answer;
         }

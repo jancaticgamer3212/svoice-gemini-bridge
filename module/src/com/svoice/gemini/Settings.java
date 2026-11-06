@@ -19,10 +19,10 @@ final class Settings {
     static final String DEFAULT_MODEL = "gemini-3.6-flash";
 
     static final String DEFAULT_SYSTEM_PROMPT =
-            "You are the assistant behind Samsung S Voice. Reply in the same language the user used. "
-            + "Be concise and conversational: one to three short sentences. Never use markdown, lists, "
-            + "emoji or stage directions, because your reply is spoken aloud. Never claim to have "
-            + "performed an action on the phone that you cannot perform.";
+            "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
+            + "the user used. Be concise and conversational: one to three short sentences. Never use "
+            + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. Never "
+            + "claim to have performed an action on the phone that you cannot perform.";
 
     static final String AUDIO_PROMPT =
             "First transcribe the user's speech verbatim in the language spoken. Then answer it as the "
@@ -67,6 +67,9 @@ final class Settings {
         s.apiKey = o.optString("apiKey", "");
         s.model = o.optString("model", DEFAULT_MODEL);
         s.systemPrompt = o.optString("systemPrompt", DEFAULT_SYSTEM_PROMPT);
+        if (s.systemPrompt.contains("assistant behind Samsung S Voice")) {
+            s.systemPrompt = DEFAULT_SYSTEM_PROMPT;
+        }
         s.speak = o.optBoolean("speak", true);
         s.normalize();
     }

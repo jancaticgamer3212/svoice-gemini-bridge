@@ -26,10 +26,16 @@ final class GeminiClient {
     static final class Answer {
         final String transcript;
         final String answer;
+        final JSONObject action;
 
         Answer(String transcript, String answer) {
+            this(transcript, answer, null);
+        }
+
+        Answer(String transcript, String answer, JSONObject action) {
             this.transcript = transcript == null ? "" : transcript;
             this.answer = answer == null ? "" : answer;
+            this.action = action;
         }
     }
 
@@ -46,12 +52,12 @@ final class GeminiClient {
 
     static Answer askAudio(Context ctx, Settings cfg, byte[] wav) throws Exception {
         String raw = request(ctx, cfg, Settings.AUDIO_PROMPT, wav);
-        return parseAnswer(raw);
+        return parse(raw);
     }
 
-    static String askText(Context ctx, Settings cfg, String text) throws Exception {
-        String raw = request(ctx, cfg, text, null);
-        return cleanAnswer(raw);
+    static Answer askText(Context ctx, Settings cfg, String text) throws Exception {
+        String raw = request(ctx, cfg, Settings.TEXT_PROMPT + "\n\nUser: " + text, null);
+        return parse(raw);
     }
 
     static String testKey(Context ctx, Settings cfg) throws Exception {
@@ -217,7 +223,7 @@ final class GeminiClient {
         return text;
     }
 
-    private static Answer parseAnswer(String raw) {
+    static Answer parse(String raw) {
         String text = raw.trim();
         int open = text.indexOf('{');
         int close = text.lastIndexOf('}');
@@ -226,8 +232,9 @@ final class GeminiClient {
                 JSONObject o = new JSONObject(text.substring(open, close + 1));
                 String transcript = o.optString("transcript", "").trim();
                 String answer = o.optString("answer", "").trim();
+                JSONObject action = o.optJSONObject("action");
                 if (answer.length() > 0) {
-                    return new Answer(transcript, cleanAnswer(answer));
+                    return new Answer(transcript, cleanAnswer(answer), action);
                 }
             } catch (Throwable ignored) {
             }

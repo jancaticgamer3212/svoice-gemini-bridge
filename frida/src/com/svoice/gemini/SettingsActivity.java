@@ -1,6 +1,7 @@
 package com.svoice.gemini;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -42,6 +43,7 @@ public class SettingsActivity extends Activity {
     private TextView setupLog;
     private Button installButton;
     private Button attachButton;
+    private Button fallbackButton;
 
     private final ExecutorService setupWorker = Executors.newSingleThreadExecutor();
 
@@ -87,10 +89,23 @@ public class SettingsActivity extends Activity {
         });
         root.addView(attachButton, matchWrap());
 
+        fallbackButton = new Button(this);
+        fallbackButton.setText("Open no-root assistant (fallback)");
+        fallbackButton.setAllCaps(false);
+        fallbackButton.setVisibility(View.GONE);
+        fallbackButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(SettingsActivity.this, AssistantActivity.class));
+            }
+        });
+        root.addView(fallbackButton, matchWrap());
+
         TextView setupHelp = label(
                 "The Frida injectors and scripts are inside this APK. Install the payload once, "
                 + "allow the su request, then attach. The watchdog reattaches on its own when "
-                + "S Voice restarts, after an update and after a reboot.",
+                + "S Voice restarts, after an update and after a reboot. Without root the S Voice "
+                + "bridge cannot load; the no-root assistant above is used instead.",
                 12, false);
         setupHelp.setPadding(0, dp(6), 0, dp(10));
         root.addView(setupHelp);
@@ -352,10 +367,12 @@ public class SettingsActivity extends Activity {
                 }
 
                 final String rendered = text.toString();
+                final boolean hasRoot = root;
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         setupStatus.setText(rendered);
+                        fallbackButton.setVisibility(hasRoot ? View.GONE : View.VISIBLE);
                     }
                 });
             }

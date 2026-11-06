@@ -48,11 +48,17 @@ final class GroqClient {
         if (transcript.length() == 0) {
             throw new Failure(0, "Groq did not hear any speech.");
         }
-        return new GeminiClient.Answer(transcript, chat(ctx, cfg, transcript));
+        GeminiClient.Answer answer = chatAnswer(ctx, cfg, transcript);
+        return new GeminiClient.Answer(transcript, answer.answer, answer.action);
     }
 
-    static String askText(Context ctx, Settings cfg, String text) throws Exception {
-        return chat(ctx, cfg, text);
+    static GeminiClient.Answer askText(Context ctx, Settings cfg, String text) throws Exception {
+        return chatAnswer(ctx, cfg, text);
+    }
+
+    private static GeminiClient.Answer chatAnswer(Context ctx, Settings cfg, String text)
+            throws Exception {
+        return GeminiClient.parse(chat(ctx, cfg, Settings.TEXT_PROMPT + "\n\nUser: " + text));
     }
 
     static String testKey(Context ctx, Settings cfg) throws Exception {

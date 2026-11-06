@@ -84,6 +84,7 @@ final class TurnController {
                     return;
                 }
                 if (activeId != id) return;
+                answer = performAction(app, answer);
                 showAnswer(activity, app, cfg, answer.transcript, answer.answer, id);
             }
         });
@@ -112,18 +113,35 @@ final class TurnController {
         WORKER.execute(new Runnable() {
             @Override
             public void run() {
-                String answer;
+                GeminiClient.Answer result;
                 try {
-                    answer = Assistant.askText(app, cfg, text);
+                    result = Assistant.askText(app, cfg, text);
                 } catch (Throwable t) {
                     Log.w(TAG, "Assistant text request failed", t);
                     if (activeId == id) postMessage(activity, app, messageOf(t), true);
                     return;
                 }
                 if (activeId != id) return;
-                showAnswer(activity, app, cfg, null, answer, id);
+                result = performAction(app, result);
+                showAnswer(activity, app, cfg, null, result.answer, id);
             }
         });
+    }
+
+    /** Runs a model-requested phone action on the worker thread before the answer is shown. */
+    private static GeminiClient.Answer performAction(Context app, GeminiClient.Answer answer) {
+        if (answer == null || answer.action == null) return answer;
+        try {
+            String result = DeviceActions.perform(app, answer.action);
+            Log.i(TAG, "action: " + result);
+            return answer;
+        } catch (Throwable t) {
+            String reason = messageOf(t);
+            Log.w(TAG, "action failed: " + reason);
+            String text = answer.answer;
+            if (text.length() > 0) text = text + " ";
+            return new GeminiClient.Answer(answer.transcript, text + reason, null);
+        }
     }
 
     private static void showAnswer(final Activity activity, final Context app, final Settings cfg,

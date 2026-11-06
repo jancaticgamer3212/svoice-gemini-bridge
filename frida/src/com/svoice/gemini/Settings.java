@@ -17,16 +17,42 @@ final class Settings {
     static final String DEFAULT_MODEL = "gemini-3.6-flash";
     static final String DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
-    static final String DEFAULT_SYSTEM_PROMPT =
+    /** Prompt shipped by 2.6 and earlier; replaced on load so old installs get the new one. */
+    static final String LEGACY_SYSTEM_PROMPT =
             "You are the assistant behind Samsung S Voice. Reply in the same language the user used. "
             + "Be concise and conversational: one to three short sentences. Never use markdown, lists, "
             + "emoji or stage directions, because your reply is spoken aloud. Never claim to have "
             + "performed an action on the phone that you cannot perform.";
 
+    static final String DEFAULT_SYSTEM_PROMPT =
+            "You are a helpful voice assistant on the user's Android phone. Reply in the same language "
+            + "the user used. Be concise and conversational: one to three short sentences. Never use "
+            + "markdown, lists, emoji or stage directions, because your reply is spoken aloud. You can "
+            + "call, send text messages and set alarms or timers on the phone when the user asks; only "
+            + "say an action happened if the action object below was returned.";
+
+    static final String ACTION_PROMPT =
+            " If the user asks you to call someone, send a text message, set an alarm or set a timer, "
+            + "include an \"action\" object. Use one of these shapes and fill in what the user said:\n"
+            + "{\"name\":\"call\",\"number\":\"+15551234567\"} or {\"contact\":\"Mom\"}\n"
+            + "{\"name\":\"sms\",\"contact\":\"Mom\",\"message\":\"On my way\"}\n"
+            + "{\"name\":\"alarm\",\"hour\":7,\"minute\":30,\"label\":\"Wake up\"} (24-hour clock)\n"
+            + "{\"name\":\"timer\",\"seconds\":300,\"label\":\"Pasta\"}\n"
+            + "If no action is needed, omit the action field or set it to null. Resolve currencies, "
+            + "units and times to the plain values shown above. Never invent a phone number.";
+
     static final String AUDIO_PROMPT =
             "First transcribe the user's speech verbatim in the language spoken. Then answer it as the "
-            + "assistant described in the system instruction. Return only a JSON object with two string "
-            + "fields: {\"transcript\": \"...\", \"answer\": \"...\"}. The answer must be plain text.";
+            + "assistant described in the system instruction. Return only a JSON object with the string "
+            + "fields {\"transcript\": \"...\", \"answer\": \"...\"} and, when an action is required, "
+            + "the \"action\" object described below. The answer must be plain text."
+            + ACTION_PROMPT;
+
+    static final String TEXT_PROMPT =
+            "Answer the user's message as the assistant described in the system instruction. Return "
+            + "only a JSON object with the string field {\"answer\": \"...\"} and, when an action is "
+            + "required, the \"action\" object described below. The answer must be plain text."
+            + ACTION_PROMPT;
 
     boolean enabled = true;
     String apiKey = "";
@@ -60,6 +86,9 @@ final class Settings {
         s.groqKey = o.optString("groqKey", "");
         s.groqModel = o.optString("groqModel", DEFAULT_GROQ_MODEL);
         s.systemPrompt = o.optString("systemPrompt", DEFAULT_SYSTEM_PROMPT);
+        if (LEGACY_SYSTEM_PROMPT.equals(s.systemPrompt.trim())) {
+            s.systemPrompt = DEFAULT_SYSTEM_PROMPT;
+        }
         s.speak = o.optBoolean("speak", true);
         s.normalize();
     }
